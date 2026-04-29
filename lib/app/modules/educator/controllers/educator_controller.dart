@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/student_model.dart';
+import '../../../data/models/educator_model.dart';
 import '../../../data/providers/api_provider.dart';
 
 class EducatorController extends GetxController {
@@ -16,10 +17,29 @@ class EducatorController extends GetxController {
   var isLoggingInStudent = false.obs;
   var studentsError = ''.obs;
 
+  // NIEPID Dashboard data
+  var niepidDashboardData = <String, dynamic>{}.obs;
+  var isLoadingDashboard = false.obs;
+
+  // NIEPID Student Assessments data
+  var niepidStudentAssessments = <dynamic>[].obs;
+  var isLoadingAssessments = false.obs;
+  var niepidStudentsCount = 0.obs;
+  var niepidTeachersCount = 0.obs;
+
+  // IEP Academic Years data
+  var iepAcademicYears = <Map<String, dynamic>>[].obs;
+  var selectedIepYearId = ''.obs;
+
+  // Current user details from API
+  var currentEducator = Rxn<EducatorModel>();
+  var isLoadingProfile = false.obs;
+
   @override
   void onReady() {
     super.onReady();
     fetchStudents();
+    fetchCurrentUser();
   }
 
   Future<void> fetchStudents() async {
@@ -74,6 +94,119 @@ class EducatorController extends GetxController {
     } finally {
       isLoadingStudents.value = false;
     }
+  }
+
+  Future<void> fetchCurrentUser() async {
+    isLoadingProfile.value = true;
+    try {
+      final response = await _apiProvider.getCurrentUser();
+      print('--- Current User Response ---');
+      print('Status Code: ${response.statusCode}');
+      print('Body: ${response.body}');
+      print('---------------------------');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.body is Map<String, dynamic>) {
+          final model = EducatorModel.fromJson(response.body as Map<String, dynamic>);
+          currentEducator.value = model;
+
+          if (model.isNipiedDisha == true) {
+            fetchNiepidDashboard();
+            fetchNiepidStudentAssessments();
+            
+            if (model.organisation?.id != null) {
+              fetchIepAcademicYears(model.organisation!.id!);
+            }
+          }
+        }
+      } else {
+        print('Failed to fetch current user data.');
+      }
+    } catch (e) {
+      print('Error fetching current user: $e');
+    } finally {
+      isLoadingProfile.value = false;
+    }
+  }
+
+  Future<void> fetchNiepidDashboard() async {
+    isLoadingDashboard.value = true;
+    try {
+      final response = await _apiProvider.getNiepidDishaDashboard();
+      print('--- NIEPID Dashboard Response ---');
+      print('Status: ${response.statusCode}');
+      print('Body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.body is Map) {
+          niepidDashboardData.value = response.body as Map<String, dynamic>;
+        }
+      }
+    } catch (e) {
+      print('Error fetching NIEPID dashboard: $e');
+    } finally {
+      isLoadingDashboard.value = false;
+    }
+  }
+
+  Future<void> fetchNiepidStudentAssessments() async {
+    isLoadingAssessments.value = true;
+    try {
+      final response = await _apiProvider.getNiepidStudentAssessments();
+      print('--- NIEPID Student Assessments Response ---');
+      print('Status: ${response.statusCode}');
+      print('Body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.body is Map) {
+          if (response.body['data'] is List) {
+            niepidStudentAssessments.value = response.body['data'];
+          }
+          if (response.body['studentscount'] != null) {
+            niepidStudentsCount.value = response.body['studentscount'] is int 
+                ? response.body['studentscount'] 
+                : int.tryParse(response.body['studentscount'].toString()) ?? 0;
+          }
+          if (response.body['teacherscount'] != null) {
+            niepidTeachersCount.value = response.body['teacherscount'] is int 
+                ? response.body['teacherscount'] 
+                : int.tryParse(response.body['teacherscount'].toString()) ?? 0;
+          }
+        }
+      }
+    } catch (e) {
+      print('Error fetching NIEPID student assessments: $e');
+    } finally {
+      isLoadingAssessments.value = false;
+    }
+  }
+
+  Future<void> fetchIepAcademicYears(String orgId) async {
+    try {
+      final response = await _apiProvider.getIepList(orgId);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = response.body is List ? response.body : [];
+        iepAcademicYears.value = data.map((e) => e as Map<String, dynamic>).toList();
+        
+        if (iepAcademicYears.isNotEmpty && selectedIepYearId.value.isEmpty) {
+          selectedIepYearId.value = iepAcademicYears.first['id']?.toString() ?? '';
+        }
+      }
+    } catch (e) {
+      print('Error fetching IEP years: $e');
+    }
+  }
+
+  String formatIepYear(Map<String, dynamic> iep) {
+    final yearly = iep['yearlyIEP'];
+    if (yearly != null) {
+      final fromStr = yearly['from']?.toString() ?? '';
+      final toStr = yearly['to']?.toString() ?? '';
+      if (fromStr.length >= 4 && toStr.length >= 4) {
+        return '${fromStr.substring(0, 4)}-${toStr.substring(0, 4)}';
+      }
+    }
+    return 'Unknown Year';
   }
 
   void changeTabIndex(int index) {

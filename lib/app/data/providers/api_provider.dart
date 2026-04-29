@@ -121,4 +121,12 @@ class ApiProvider extends GetConnect {
       headers: headers,
     );
   }
+
+  Future<Response> getCareGiverMeetingData() async {
+    final headers = await _buildAuthHeaders();
+    return get(
+      '/niepid-disha-assessment/institute/care-giver',
+      headers: headers,
+    );
+  }
 }

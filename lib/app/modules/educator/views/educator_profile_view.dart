@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_gradients.dart';
+import '../controllers/educator_controller.dart';
 
-class EducatorProfileView extends StatelessWidget {
+class EducatorProfileView extends GetView<EducatorController> {
   const EducatorProfileView({super.key});
 
   @override
@@ -60,48 +61,76 @@ class EducatorProfileView extends StatelessWidget {
   }
 
   Widget _buildProfileDetails() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: const Icon(Icons.psychology, size: 50, color: AppTheme.primaryColor),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Rahul Sharma',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Special Educator',
-                  style: TextStyle(fontSize: 16, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 24),
-              ],
+    return Obx(() {
+      if (controller.isLoadingProfile.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      
+      final educator = controller.currentEducator.value;
+      
+      final String name = educator?.fullName.isNotEmpty == true ? educator!.fullName : 'Rahul Sharma';
+      final String email = educator?.email ?? 'rahuleducator@gmail.com';
+      final String phone = educator?.mobile ?? '+91 9044481395';
+      
+      // DOB might not be directly in the response based on JSON, default to fallback for now.
+      final String dob = '15th May 1990'; 
+      
+      final String addressStr = (educator?.address?.localAddress != null && educator?.address?.district != null) 
+          ? '${educator!.address!.localAddress}, ${educator.address!.district}, ${educator.address!.state ?? ''}'
+          : '123 Education Lane, Learning City, IN';
+      
+      final String designation = educator?.designation ?? 'Special Educator';
+      final String crrNumber = educator?.crrNumber?.isNotEmpty == true ? educator!.crrNumber! : 'CRR-12345-DL';
+      final String qualification = educator?.qualification ?? 'M.Ed. in Special Education';
+      
+      // Experience isn't in JSON, just duration, will fall back
+      final String experience = '8 Years';
+      
+      final String schoolName = educator?.organisation?.schoolName ?? 'Divyang Sarthi Academy';
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                    child: const Icon(Icons.psychology, size: 50, color: AppTheme.primaryColor),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    name,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    designation,
+                    style: const TextStyle(fontSize: 16, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
-          ),
-          _buildSectionTitle('Personal Information'),
-          _buildInfoRow(Icons.email_outlined, 'Email', 'rahuleducator@gmail.com'),
-          _buildInfoRow(Icons.phone_outlined, 'Phone', '+91 9044481395'),
-          _buildInfoRow(Icons.calendar_today_outlined, 'Date of Birth', '15th May 1990'),
-          _buildInfoRow(Icons.location_on_outlined, 'Address', '123 Education Lane, Learning City, IN'),
-          const SizedBox(height: 24),
-          _buildSectionTitle('Professional Information'),
-          _buildInfoRow(Icons.school_outlined, 'Institute', 'Divyang Sarthi Academy'),
-          _buildInfoRow(Icons.badge_outlined, 'CRR Number', 'CRR-12345-DL'),
-          _buildInfoRow(Icons.history_edu_outlined, 'Qualification', 'M.Ed. in Special Education'),
-          _buildInfoRow(Icons.work_outline, 'Experience', '8 Years'),
-          _buildInfoRow(Icons.group_outlined, 'Assigned Students', '45 Students'),
-        ],
-      ),
-    );
+            _buildSectionTitle('Personal Information'),
+            _buildInfoRow(Icons.email_outlined, 'Email', email),
+            _buildInfoRow(Icons.phone_outlined, 'Phone', phone),
+            _buildInfoRow(Icons.calendar_today_outlined, 'Date of Birth', dob),
+            _buildInfoRow(Icons.location_on_outlined, 'Address', addressStr),
+            const SizedBox(height: 24),
+            _buildSectionTitle('Professional Information'),
+            _buildInfoRow(Icons.school_outlined, 'Institute', schoolName),
+            _buildInfoRow(Icons.badge_outlined, 'CRR Number', crrNumber),
+            _buildInfoRow(Icons.history_edu_outlined, 'Qualification', qualification),
+            _buildInfoRow(Icons.work_outline, 'Experience', experience),
+            _buildInfoRow(Icons.group_outlined, 'Assigned Students', '${controller.students.length} Students'),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildSectionTitle(String title) {

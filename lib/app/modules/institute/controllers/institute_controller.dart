@@ -41,6 +41,12 @@ class InstituteController extends GetxController {
   
   var niepidQuestions = Rxn<Map<String, dynamic>>();
   var isQuestionsLoading = false.obs;
+  
+  var careGiverMeetingData = Rxn<Map<String, dynamic>>();
+  var isCareGiverLoading = false.obs;
+  var selectedCareGiverTeacher = Rxn<String>();
+  var filteredCareGiverStudents = <Map<String, dynamic>>[].obs;
+  var availableCareGiverTeachers = <Map<String, dynamic>>[].obs;
 
   @override
   void onInit() {
@@ -663,5 +669,55 @@ class InstituteController extends GetxController {
     } catch (e) {
       return "-";
     }
+  }
+
+  Future<void> fetchCareGiverMeetingData() async {
+    try {
+      isCareGiverLoading.value = true;
+      final response = await _apiProvider.getCareGiverMeetingData();
+      
+      print('Care Giver Meeting Response Status: ${response.statusCode}');
+      print('Care Giver Meeting Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        careGiverMeetingData.value = response.body;
+        
+        // Extract teachers
+        final List? teachers = response.body['teacherStatus'];
+        if (teachers != null) {
+          availableCareGiverTeachers.assignAll(List<Map<String, dynamic>>.from(teachers));
+        }
+
+        // Initially show all students or filter if a teacher is already selected
+        applyCareGiverFilters();
+      }
+    } catch (e) {
+      print('Exception fetching care giver meeting data: $e');
+    } finally {
+      isCareGiverLoading.value = false;
+    }
+  }
+
+  void applyCareGiverFilters() {
+    final allStudents = careGiverMeetingData.value?['students'] as List?;
+    if (allStudents == null) {
+      filteredCareGiverStudents.clear();
+      return;
+    }
+
+    var filtered = List<Map<String, dynamic>>.from(allStudents);
+
+    if (selectedCareGiverTeacher.value != null) {
+      filtered = filtered
+          .where((s) => s['teacherId'] == selectedCareGiverTeacher.value)
+          .toList();
+    }
+
+    filteredCareGiverStudents.assignAll(filtered);
+  }
+
+  void onCareGiverTeacherChanged(String? teacherId) {
+    selectedCareGiverTeacher.value = teacherId;
+    applyCareGiverFilters();
   }
 }
