@@ -147,18 +147,18 @@ class EducatorDashboardView extends GetView<EducatorController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!isNiepid)
-                    Text(
-                    'Welcome $name',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  // if (!isNiepid)
+                  //   Text(
+                  //   'Welcome $name',
+                  //   style: const TextStyle(
+                  //     color: Colors.white,
+                  //     fontSize: 22,
+                  //     fontWeight: FontWeight.bold,
+                  //   ),
+                  // ),
                   const SizedBox(height: 4),
                   Text(
-                    schoolName,
+                    'Welcome $schoolName',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,

@@ -25,6 +25,8 @@ import 'app/modules/educator/views/educator_home_view.dart';
 import 'app/modules/educator/views/educator_profile_view.dart';
 import 'app/modules/educator/views/educator_mood_board_submission_view.dart';
 import 'app/modules/educator/views/educator_student_detail_view.dart';
+import 'app/modules/educator/views/educator_iep_assessment_view.dart';
+import 'app/modules/educator/views/educator_goal_monitoring_view.dart';
 import 'app/modules/parent/views/parent_add_child_view.dart';
 import 'app/modules/parent/views/parent_child_profile_view.dart';
 import 'app/modules/login/bindings/login_binding.dart';
@@ -155,6 +157,14 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/educator-student-detail',
           page: () => const EducatorStudentDetailView(),
+        ),
+        GetPage(
+          name: '/educator-iep-assessment',
+          page: () => const EducatorIepAssessmentView(),
+        ),
+        GetPage(
+          name: '/educator-goal-monitoring',
+          page: () => const EducatorGoalMonitoringView(),
         ),
         GetPage(
           name: '/student-home',

@@ -73,6 +73,31 @@ class ApiProvider extends GetConnect {
     );
   }
 
+  Future<Response> saveStudentGoals(Map<String, dynamic> data) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return put(
+      '/niepid-disha-assessment/user/student-goals',
+      data,
+      headers: headers,
+    );
+  }
+
+  Future<Response> getStudentGoals(String studentId) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return get(
+      '/niepid-disha-assessment/user/student-goals/$studentId',
+      headers: headers,
+    );
+  }
+
   Future<Response> getCurrentUser() async {
     final headers = await _buildAuthHeaders();
     return get(
@@ -126,6 +151,49 @@ class ApiProvider extends GetConnect {
     final headers = await _buildAuthHeaders();
     return get(
       '/niepid-disha-assessment/institute/care-giver',
+      headers: headers,
+    );
+  }
+
+  Future<Response> getGoalMonitoringQuestions(String orgId, String studentId, String yearId) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/user/questions/$orgId/$studentId/$yearId/entry';
+    print('DEBUG: Calling Goal Monitoring Questions API: ${httpClient.baseUrl}$url');
+    return get(
+      url,
+      headers: headers,
+    );
+  }
+
+  /// Fetch questions for a specific term: entry, term1, term2
+  Future<Response> getTermQuestions(String orgId, String studentId, String yearId, String term) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/user/questions/$orgId/$studentId/$yearId/$term';
+    print('DEBUG: Calling Term Questions API ($term): ${httpClient.baseUrl}$url');
+    return get(
+      url,
+      headers: headers,
+    );
+  }
+
+  Future<Response> getGoalMonitoringData(String studentId, String yearId) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/user/$studentId/$yearId/entry';
+    print('DEBUG: Calling Goal Monitoring Data API: ${httpClient.baseUrl}$url');
+    return get(
+      url,
       headers: headers,
     );
   }

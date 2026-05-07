@@ -41,102 +41,131 @@ class EducatorHomeView extends GetView<EducatorController> {
   }
 
   Widget _buildMainContent() {
-    return Obx(() => IndexedStack(
-          index: controller.currentIndex.value,
-          children: [
-            const EducatorDashboardView(),
-            const EducatorStudentView(),
-            const EducatorAttendanceView(),
-            const EducatorMoodBoardView(),
-            _buildMore(),
-          ],
-        ));
+    return Obx(() {
+      final isNiepid = controller.currentEducator.value?.isNipiedDisha == true;
+      return IndexedStack(
+        index: controller.currentIndex.value,
+        children: [
+          const EducatorDashboardView(),
+          const EducatorStudentView(),
+          isNiepid ? _buildModules() : const EducatorAttendanceView(),
+          isNiepid ? _buildDishaCurriculum() : const EducatorMoodBoardView(),
+          _buildMore(),
+        ],
+      );
+    });
   }
 
   Widget _buildBottomNav() {
-    return Obx(() => Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: BottomNavigationBar(
-            currentIndex: controller.currentIndex.value,
-            onTap: controller.changeTabIndex,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.white,
-            selectedItemColor: AppTheme.primaryColor,
-            unselectedItemColor: AppTheme.textSecondary,
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 10),
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard_outlined),
-                activeIcon: Icon(Icons.dashboard),
-                label: 'Dashboard',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.school_outlined),
-                activeIcon: Icon(Icons.school),
-                label: 'Student',
-              ),
-              BottomNavigationBarItem(
+    return Obx(() {
+      final isNiepid = controller.currentEducator.value?.isNipiedDisha == true;
+      return Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: controller.currentIndex.value,
+          onTap: controller.changeTabIndex,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: AppTheme.primaryColor,
+          unselectedItemColor: AppTheme.textSecondary,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 10),
+          items: [
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.school_outlined),
+              activeIcon: Icon(Icons.school),
+              label: 'Student',
+            ),
+            if (isNiepid)
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.view_module_outlined),
+                activeIcon: Icon(Icons.view_module),
+                label: 'Modules',
+              )
+            else
+              const BottomNavigationBarItem(
                 icon: Icon(Icons.how_to_reg_outlined),
                 activeIcon: Icon(Icons.how_to_reg),
                 label: 'Attendance',
               ),
-              BottomNavigationBarItem(
+            if (isNiepid)
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.book_outlined),
+                activeIcon: Icon(Icons.book),
+                label: 'Disha Curriculum',
+              )
+            else
+              const BottomNavigationBarItem(
                 icon: Icon(Icons.mood_outlined),
                 activeIcon: Icon(Icons.mood),
                 label: 'Mood Board',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.menu_outlined),
-                activeIcon: Icon(Icons.menu),
-                label: 'More',
-              ),
-            ],
-          ),
-        ));
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.menu_outlined),
+              activeIcon: Icon(Icons.menu),
+              label: 'More',
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildSidebar() {
-    return Obx(() => Container(
-          width: 250,
-          color: Colors.white,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                alignment: Alignment.centerLeft,
-                child: const Text(
-                  'Educator Portal',
-                  style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+    return Obx(() {
+      final isNiepid = controller.currentEducator.value?.isNipiedDisha == true;
+      return Container(
+        width: 250,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                'Educator Portal',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              _buildSidebarItem(0, Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
-              _buildSidebarItem(1, Icons.school_outlined, Icons.school, 'Students'),
+            ),
+            _buildSidebarItem(0, Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
+            _buildSidebarItem(1, Icons.school_outlined, Icons.school, 'Students'),
+            if (isNiepid)
+              _buildSidebarItem(2, Icons.view_module_outlined, Icons.view_module, 'Modules')
+            else
               _buildSidebarItem(2, Icons.how_to_reg_outlined, Icons.how_to_reg, 'Attendance'),
+            if (isNiepid)
+              _buildSidebarItem(3, Icons.book_outlined, Icons.book, 'Disha Curriculum')
+            else
               _buildSidebarItem(3, Icons.mood_outlined, Icons.mood, 'Mood Board'),
-              _buildSidebarItem(4, Icons.menu_outlined, Icons.menu, 'All Services'),
-              const Spacer(),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text('Logout', style: TextStyle(color: Colors.red)),
-                onTap: _showLogoutDialog,
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ));
+            _buildSidebarItem(4, Icons.menu_outlined, Icons.menu, 'All Services'),
+            const Spacer(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: _showLogoutDialog,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildSidebarItem(int index, IconData icon, IconData activeIcon, String label) {
@@ -160,6 +189,115 @@ class EducatorHomeView extends GetView<EducatorController> {
           ),
         ),
         onTap: () => controller.changeTabIndex(index),
+      ),
+    );
+  }
+
+  Widget _buildModules() {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24, right: 24),
+          decoration: const BoxDecoration(
+            gradient: AppGradients.primaryGradient,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(30),
+              bottomRight: Radius.circular(30),
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Modules',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('Access specialized modules',
+                  style: TextStyle(color: Colors.white70, fontSize: 14)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            children: [
+              _buildMoreTile(
+                  icon: Icons.assessment_outlined,
+                  title: 'IEP Assessment',
+                  subtitle: 'Manage IEP Assessments',
+                  onTap: () => controller.goToIepAssessment()),
+              _buildMoreTile(
+                  icon: Icons.flag_outlined,
+                  title: 'Goal Monitoring',
+                  subtitle: 'Monitor student goals',
+                  onTap: () => controller.goToGoalMonitoring()),
+              _buildMoreTile(
+                  icon: Icons.people_outline,
+                  title: 'Care Giver Meeting',
+                  subtitle: 'Schedule and manage meetings',
+                  onTap: () {}),
+              _buildMoreTile(
+                  icon: Icons.summarize_outlined,
+                  title: 'Student Reports',
+                  subtitle: 'View and generate reports',
+                  onTap: () {}),
+              _buildMoreTile(
+                  icon: Icons.library_books_outlined,
+                  title: 'Learning Resources',
+                  subtitle: 'Access learning materials',
+                  onTap: () {}),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDishaCurriculum() {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.only(top: 60, bottom: 20, left: 20, right: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primaryColor, AppTheme.primaryColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Disha Curriculum',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold)),
+                SizedBox(height: 8),
+                Text('Access educational curriculum materials',
+                    style: TextStyle(color: Colors.white70, fontSize: 14)),
+              ],
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Disha Curriculum Content Coming Soon',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
