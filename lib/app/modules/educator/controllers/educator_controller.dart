@@ -50,12 +50,25 @@ class EducatorController extends GetxController {
   var goalMonitoringStatuses = <String, String>{}.obs; // entry, term1, term2 status
   var allNiepidQuestions = <Map<String, dynamic>>[].obs;
   var termQuestionsCache = <String, List<Map<String, dynamic>>>{}.obs; // 'term1', 'term2' -> domains
+  var goalMonitoringRawDataPerTerm = <String, Map<String, dynamic>>{}.obs; // 'entry', 'term1', 'term2' -> goals map
+  var isSavingGoalMonitoringDraft = false.obs;
+  var isSubmittingGoalMonitoring = false.obs;
+  var isGoalMonitoringDataLoaded = false.obs;
+  var isGoalMonitoringReviewComplete = false.obs;
   
+  // Care Giver Meeting state
+  var careGiverStudents = <dynamic>[].obs;
+  var isLoadingCareGiverMeeting = false.obs;
+  var selectedCareGiverYearId = ''.obs;
+
+  var allAssessmentDomains = <Map<String, dynamic>>[].obs;
   var assessmentDomains = <Map<String, dynamic>>[].obs;
   var isLoadingQuestions = false.obs;
   var isSavingDraft = false.obs;
   var assessmentAnswers = <String, Map<String, dynamic>>{}.obs;
   var usedPriorities = <int>{}.obs;
+  var isReviewComplete = false.obs;
+  var isSubmitting = false.obs;
 
   int getDomainTotalQuestionsCount(Map<String, dynamic> domain) {
     final qs = domain['questions'] as List?;
@@ -91,7 +104,32 @@ class EducatorController extends GetxController {
     }
     return count;
   }
+  bool get isAllGoalMonitoringAnswered {
+    if (goalMonitoringDomains.isEmpty) return false;
+    for (var domain in goalMonitoringDomains) {
+      final questions = domain['questions'] as List? ?? [];
+      for (var q in questions) {
+        final qId = q['_id']?.toString() ?? '';
+        final ans = goalMonitoringAnswers[qId];
+        if (ans == null || ans['mainOption'] == null || ans['mainOption'].toString().isEmpty) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
   
+  bool get isAllIepQuestionsAnswered {
+    if (assessmentDomains.isEmpty) return false;
+    int totalQs = 0;
+    int totalAns = 0;
+    for (var domain in assessmentDomains) {
+      totalQs += getDomainTotalQuestionsCount(domain);
+      totalAns += getDomainAnsweredCount(domain);
+    }
+    return totalQs > 0 && totalAns == totalQs;
+  }
+
   Map<String, dynamic>? get selectedIepStudentDetails {
     if (selectedIepAssessmentStudentId.value.isEmpty) return null;
     try {
@@ -175,8 +213,8 @@ class EducatorController extends GetxController {
       }
 
       final response = await _apiProvider.getAllStudentsByAccessId(accessId);
-      print('Student API status: ${response.statusCode}');
-      print('Student API body: ${response.body}');
+      debugPrint('Student API status: ${response.statusCode}');
+      debugPrint('Student API body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = response.body;
@@ -194,7 +232,7 @@ class EducatorController extends GetxController {
               [];
         }
 
-        print('Parsed ${data.length} students from response');
+        debugPrint('Parsed ${data.length} students from response');
         students.value = data
             .map((item) => StudentModel.fromJson(item as Map<String, dynamic>))
             .toList();
@@ -221,12 +259,12 @@ class EducatorController extends GetxController {
     isLoadingProfile.value = true;
     try {
       final response = await _apiProvider.getCurrentUser();
-      print('--- Current User Response ---');
-      print('Status Code: ${response.statusCode}');
-      print('Body: ${response.body}');
-      print('---------------------------');
+      debugPrint('--- Current User Response ---');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
+      debugPrint('---------------------------');
       
-      print('Educater organisation id: ${currentEducator.value?.organisation?.id}');
+      debugPrint('Educater organisation id: ${currentEducator.value?.organisation?.id}');
       
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -244,10 +282,10 @@ class EducatorController extends GetxController {
           }
         }
       } else {
-        print('Failed to fetch current user data.');
+        debugPrint('Failed to fetch current user data.');
       }
     } catch (e) {
-      print('Error fetching current user: $e');
+      debugPrint('Error fetching current user: $e');
     } finally {
       isLoadingProfile.value = false;
     }
@@ -257,9 +295,9 @@ class EducatorController extends GetxController {
     isLoadingDashboard.value = true;
     try {
       final response = await _apiProvider.getNiepidDishaDashboard();
-      print('--- NIEPID Dashboard Response ---');
-      print('Status: ${response.statusCode}');
-      print('Body: ${response.body}');
+      debugPrint('--- NIEPID Dashboard Response ---');
+      debugPrint('Status: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map) {
@@ -267,7 +305,7 @@ class EducatorController extends GetxController {
         }
       }
     } catch (e) {
-      print('Error fetching NIEPID dashboard: $e');
+      debugPrint('Error fetching NIEPID dashboard: $e');
     } finally {
       isLoadingDashboard.value = false;
     }
@@ -277,9 +315,9 @@ class EducatorController extends GetxController {
     isLoadingAssessments.value = true;
     try {
       final response = await _apiProvider.getNiepidStudentAssessments();
-      print('--- NIEPID Student Assessments Response ---');
-      print('Status: ${response.statusCode}');
-      print('Body: ${response.body}');
+      debugPrint('--- NIEPID Student Assessments Response ---');
+      debugPrint('Status: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map) {
@@ -299,7 +337,7 @@ class EducatorController extends GetxController {
         }
       }
     } catch (e) {
-      print('Error fetching NIEPID student assessments: $e');
+      debugPrint('Error fetching NIEPID student assessments: $e');
     } finally {
       isLoadingAssessments.value = false;
     }
@@ -317,7 +355,7 @@ class EducatorController extends GetxController {
         }
       }
     } catch (e) {
-      print('Error fetching IEP years: $e');
+      debugPrint('Error fetching IEP years: $e');
     }
   }
 
@@ -339,11 +377,16 @@ class EducatorController extends GetxController {
 
   Future<void> fetchAssessmentQuestions() async {
     // final orgId = currentEducator.value?.organisation?.id;
-    final orgId = '68d4e4e20e437cd03453ccd8';
+    final orgId = "68d4e4e20e437cd03453ccd8";
     final studentDetails = selectedIepStudentDetails;
-    
-    if (orgId == null || studentDetails == null) {
-      Get.snackbar('Error', 'Missing organisation or student details',
+
+    // if (orgId == null || orgId.isEmpty) {
+    //   Get.snackbar('Error', 'Organisation not loaded yet. Please wait and try again.',
+    //       snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+    //   return;
+    // }
+    if (studentDetails == null) {
+      Get.snackbar('Error', 'No student selected.',
           snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
       return;
     }
@@ -368,8 +411,23 @@ class EducatorController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map && response.body['domains'] is List) {
           final List<dynamic> rawDomains = response.body['domains'];
-          assessmentDomains.value = rawDomains.map((e) => e as Map<String, dynamic>).toList();
+
+          // ── Debug: log first domain + first question keys to find ageGroup field
+          if (rawDomains.isNotEmpty) {
+            final d0 = rawDomains.first as Map;
+            debugPrint('DEBUG domain keys: ${d0.keys.toList()}');
+            final qs = d0['questions'] as List? ?? [];
+            if (qs.isNotEmpty) {
+              final q0 = qs.first as Map;
+              debugPrint('DEBUG question keys: ${q0.keys.toList()}');
+              debugPrint('DEBUG first question: $q0');
+            }
+          }
+
+          allAssessmentDomains.value = rawDomains.map((e) => e as Map<String, dynamic>).toList();
+          _applyIepLevelFilter();
         } else {
+          allAssessmentDomains.clear();
           assessmentDomains.clear();
         }
       } else {
@@ -382,9 +440,10 @@ class EducatorController extends GetxController {
         try {
           final body = draftResponse.body;
           if (body is Map) {
-            // Build helper map for question options
+            // Build helper map for question options — use allAssessmentDomains so
+            // options are resolved even when the age-group filter hides some questions.
             final qOptionsMap = <String, List<dynamic>>{};
-            for (var d in assessmentDomains) {
+            for (var d in allAssessmentDomains) {
               final qs = d['questions'] as List?;
               if (qs != null) {
                 for (var q in qs) {
@@ -459,10 +518,10 @@ class EducatorController extends GetxController {
                 }
               }
             }
-            print('DEBUG: Pre-filled answers mapped: ${assessmentAnswers.length}');
+            debugPrint('DEBUG: Pre-filled answers mapped: ${assessmentAnswers.length}');
           }
         } catch (e) {
-          print('Error parsing draft goals: $e');
+          debugPrint('Error parsing draft goals: $e');
         }
       }
       
@@ -477,8 +536,45 @@ class EducatorController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Listen to term changes to refresh the monitoring list
     ever(selectedGoalMonitoringTerm, (_) => _filterGoalMonitoringData());
+    ever(selectedIepLevel, (_) => _applyIepLevelFilter());
+    ever(selectedIepAssessmentStudentId, (_) => autoSetIepLevel());
+    
+    // Reset loaded state when student or year changes
+    ever(selectedGoalMonitoringStudentId, (_) {
+      isGoalMonitoringDataLoaded.value = false;
+      isGoalMonitoringReviewComplete.value = false;
+    });
+    ever(selectedGoalMonitoringYearId, (_) {
+      isGoalMonitoringDataLoaded.value = false;
+      isGoalMonitoringReviewComplete.value = false;
+    });
+    ever(selectedGoalMonitoringTerm, (_) {
+      isGoalMonitoringReviewComplete.value = false;
+      _filterGoalMonitoringData();
+    });
+  }
+
+  void autoSetIepLevel() {
+    final details = selectedIepStudentDetails;
+    if (details == null || details.isEmpty) {
+      selectedIepLevel.value = '';
+      return;
+    }
+    final dob = details['dateOfBirth']?.toString() ??
+                details['dob']?.toString() ??
+                details['date_of_birth']?.toString() ??
+                details['DOB']?.toString();
+    final age = calculateAge(dob);
+    debugPrint('DEBUG autoSetIepLevel: dob=$dob age=$age');
+    if (age >= 3 && age < 14) {
+      selectedIepLevel.value = '3-14 years';
+    } else if (age >= 14) {
+      selectedIepLevel.value = '14-18 years';
+    } else {
+      selectedIepLevel.value = '';
+    }
+    debugPrint('DEBUG autoSetIepLevel: set level="${selectedIepLevel.value}"');
   }
 
   void _filterGoalMonitoringData() {
@@ -517,36 +613,40 @@ class EducatorController extends GetxController {
           }
         }
         goalMonitoringDomains.value = List<Map<String, dynamic>>.from(cachedDomains);
-        print('DEBUG: Showing ${cachedDomains.length} domains for $termKey from cache');
+        debugPrint('DEBUG: Showing ${cachedDomains.length} domains for $termKey from cache');
       } else {
         goalMonitoringDomains.clear();
-        print('DEBUG: No cached questions for $termKey yet');
+        debugPrint('DEBUG: No cached questions for $termKey yet');
       }
       return;
     }
 
     // --- Baseline (entry) logic ---
-    if (goalMonitoringRawData.isEmpty || allNiepidQuestions.isEmpty) return;
+    final rawData = goalMonitoringRawDataPerTerm[termKey];
+    if (rawData == null || allNiepidQuestions.isEmpty) return;
 
     goalMonitoringAnswers.clear();
     final Set<String> goalQuestionIds = {};
-
-    final yearGoals = goalMonitoringRawData[yearId];
+    
+    final yearGoals = rawData[yearId];
     if (yearGoals is Map) {
-      final termList = yearGoals[termKey] as List?;
-      if (termList != null) {
-        for (var goalItem in termList) {
+      final entryList = yearGoals['entry'] as List?;
+      if (entryList != null) {
+        for (var goalItem in entryList) {
           final qId = goalItem['questionId']?.toString();
           if (qId != null && qId.isNotEmpty) {
             goalQuestionIds.add(qId);
-            final selectedOpt = goalItem['selectedOption']?.toString() ?? 'N/A';
+            
+            // Extract previously monitored values if they exist in the CURRENT term's goals list
+            final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
             String grade = selectedOpt;
-            String score = 'N/A';
+            String score = '';
             if (selectedOpt.contains(':')) {
               final parts = selectedOpt.split(':');
               grade = parts[0].trim();
               score = parts.sublist(1).join(':').trim();
             }
+            
             goalMonitoringAnswers[qId] = {
               'mainOption': grade,
               'score': score,
@@ -557,6 +657,8 @@ class EducatorController extends GetxController {
         }
       }
     }
+
+
 
     final List<Map<String, dynamic>> filteredDomains = [];
     final Set<String> processedGoalIds = {};
@@ -600,7 +702,100 @@ class EducatorController extends GetxController {
     }
 
     goalMonitoringDomains.value = filteredDomains;
-    print('DEBUG: Filtered ${goalMonitoringAnswers.length} goals for term: $termKey');
+    debugPrint('DEBUG: Filtered ${goalMonitoringAnswers.length} goals for term: $termKey');
+  }
+
+  // All candidate field names the API might use for age group, in priority order.
+  static const _ageGroupFields = [
+    'ageGroup', 'age_group', 'agegroup', 'AgeGroup',
+    'level', 'Level', 'type', 'Type',
+    'category', 'Category', 'group', 'Group',
+    'standard', 'Standard', 'ageRange', 'age_range',
+  ];
+
+  /// Returns the first non-empty age-group value found in [obj], or ''.
+  String _ageGroupOf(Map obj) {
+    for (final f in _ageGroupFields) {
+      final v = obj[f];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim().toLowerCase();
+      }
+    }
+    return '';
+  }
+
+  /// Case-insensitive check: does [fieldValue] describe [rangeOnly] (e.g. "3-14")?
+  bool _ageGroupMatches(String fieldValue, String rangeOnly) {
+    final fv = fieldValue.toLowerCase();
+    final rv = rangeOnly.toLowerCase();
+    // Direct contains in either direction covers "3-14", "3-14 years", "3 to 14" etc.
+    return fv.contains(rv) || rv.contains(fv);
+  }
+
+  void _applyIepLevelFilter() {
+    if (allAssessmentDomains.isEmpty) {
+      assessmentDomains.clear();
+      return;
+    }
+
+    final level = selectedIepLevel.value;
+    if (level.isEmpty) {
+      assessmentDomains.value = List.from(allAssessmentDomains);
+      return;
+    }
+
+    // "3-14 years" → "3-14"
+    final rangeOnly = level.replaceAll(RegExp(r'\s*years\s*', caseSensitive: false), '').trim();
+
+    // ── Auto-detect: scan questions to find which field is actually populated ──
+    String? detectedField;
+    outer:
+    for (final domain in allAssessmentDomains) {
+      for (final q in (domain['questions'] as List? ?? [])) {
+        if (q is Map) {
+          for (final f in _ageGroupFields) {
+            final v = q[f];
+            if (v != null && v.toString().trim().isNotEmpty) {
+              detectedField = f;
+              break outer;
+            }
+          }
+        }
+      }
+    }
+
+    debugPrint('DEBUG IEP filter: level="$level" rangeOnly="$rangeOnly" detectedField=$detectedField');
+
+    // If the API response has no age-group field at all, show everything.
+    if (detectedField == null) {
+      debugPrint('DEBUG IEP filter: no ageGroup field found — showing all questions');
+      assessmentDomains.value = List.from(allAssessmentDomains);
+      return;
+    }
+
+    final filtered = <Map<String, dynamic>>[];
+    for (final domain in allAssessmentDomains) {
+      final domainAg = _ageGroupOf(domain);
+      if (domainAg.isNotEmpty && !_ageGroupMatches(domainAg, rangeOnly)) continue;
+
+      final allQs = (domain['questions'] as List? ?? []);
+      final filteredQs = allQs.where((q) {
+        if (q is! Map) return true;
+        final qAg = _ageGroupOf(q);
+        return qAg.isEmpty || _ageGroupMatches(qAg, rangeOnly);
+      }).toList();
+
+      if (filteredQs.isNotEmpty) {
+        final d = Map<String, dynamic>.from(domain);
+        d['questions'] = filteredQs;
+        d['questionsCount'] = filteredQs.length;
+        filtered.add(d);
+      }
+    }
+
+    debugPrint('DEBUG IEP filter: ${filtered.length} domains, '
+        '${filtered.fold(0, (s, d) => s + ((d["questions"] as List?)?.length ?? 0))} questions');
+    assessmentDomains.value = filtered;
   }
 
   Future<void> fetchGoalMonitoringQuestions() async {
@@ -616,85 +811,115 @@ class EducatorController extends GetxController {
 
     isLoadingGoalMonitoringQuestions.value = true;
     termQuestionsCache.clear();
+    goalMonitoringRawDataPerTerm.clear();
+    goalMonitoringStatuses.clear();
+    
     try {
-      // Fetch the full question bank (entry) + term1 and term2 questions in parallel
-      final results = await Future.wait([
-        _apiProvider.getNiepidQuestions(orgId, studentId),
-        _apiProvider.getTermQuestions(orgId, studentId, yearId, 'term1'),
-        _apiProvider.getTermQuestions(orgId, studentId, yearId, 'term2'),
-      ]);
-      final response = results[0];
-      final term1Response = results[1];
-      final term2Response = results[2];
-
-      // Cache term1 domains
-      if (term1Response.statusCode == 200 || term1Response.statusCode == 201) {
-        if (term1Response.body is Map && term1Response.body['domains'] is List) {
-          termQuestionsCache['term1'] = (term1Response.body['domains'] as List)
-              .map((e) => e as Map<String, dynamic>).toList();
-          print('DEBUG: Cached ${termQuestionsCache["term1"]?.length} domains for term1');
-        }
-      }
-      // Cache term2 domains
-      if (term2Response.statusCode == 200 || term2Response.statusCode == 201) {
-        if (term2Response.body is Map && term2Response.body['domains'] is List) {
-          termQuestionsCache['term2'] = (term2Response.body['domains'] as List)
-              .map((e) => e as Map<String, dynamic>).toList();
-          print('DEBUG: Cached ${termQuestionsCache["term2"]?.length} domains for term2');
-        }
-      }
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.body is Map && response.body['domains'] is List) {
-          allNiepidQuestions.value = (response.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
-          
-          // Call the correct endpoint: /niepid-disha-assessment/user/{studentId}/{yearId}/entry
-          final draftResponse = await _apiProvider.getGoalMonitoringData(studentId, yearId);
-          print('DEBUG: Goal Monitoring Data status: ${draftResponse.statusCode}');
-          if (draftResponse.statusCode == 200 || draftResponse.statusCode == 201) {
-            final body = draftResponse.body;
-            if (body is Map) {
-              if (body['goals'] is Map) {
-                goalMonitoringRawData.value = Map<String, dynamic>.from(body['goals']);
-              }
-              
-              // Parse status block
-              if (body['status'] is Map) {
-                final statusMap = body['status'] as Map;
-                final yearStatus = statusMap[yearId];
-                if (yearStatus is Map) {
-                  goalMonitoringStatuses.assignAll({
-                    'entry': yearStatus['entry']?.toString() ?? 'N/A',
-                    'term1': yearStatus['term1']?.toString() ?? 'N/A',
-                    'term2': yearStatus['term2']?.toString() ?? 'N/A',
-                  });
-                  print('DEBUG: Statuses parsed: ${goalMonitoringStatuses}');
-                } else {
-                  goalMonitoringStatuses.clear();
-                }
-              }
-              
-              _filterGoalMonitoringData();
-            }
-          } else {
-            print('DEBUG: getGoalMonitoringData failed: ${draftResponse.statusCode} - ${draftResponse.body}');
+      // 1. Fetch Baseline (entry)
+      final baselineQsRes = await _apiProvider.getNiepidQuestions(orgId, studentId);
+      if (baselineQsRes.statusCode == 200 || baselineQsRes.statusCode == 201) {
+        allNiepidQuestions.value = (baselineQsRes.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
+        
+        final baselineDataRes = await _apiProvider.getGoalMonitoringTermData(studentId, yearId, 'entry');
+        if (baselineDataRes.statusCode == 200 || baselineDataRes.statusCode == 201) {
+          final body = baselineDataRes.body;
+          if (body is Map) {
+            if (body['goals'] is Map) goalMonitoringRawDataPerTerm['entry'] = Map<String, dynamic>.from(body['goals']);
+            if (body['status'] is Map) _parseStatuses(body['status'], yearId);
           }
         }
-      } else {
-        Get.snackbar('Error', 'Failed to fetch questions. Status: ${response.statusCode}',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
       }
+
+      // 2. If Baseline is Approved, fetch Term 1
+      if (isTermTabEnabled('term1')) {
+        final t1QsRes = await _apiProvider.getTermQuestions(orgId, studentId, yearId, 'term1');
+        if (t1QsRes.statusCode == 200 || t1QsRes.statusCode == 201) {
+          termQuestionsCache['term1'] = (t1QsRes.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
+          
+          final t1DataRes = await _apiProvider.getGoalMonitoringTermData(studentId, yearId, 'term1');
+          if (t1DataRes.statusCode == 200 || t1DataRes.statusCode == 201) {
+            final body = t1DataRes.body;
+            if (body is Map) {
+              if (body['goals'] is Map) goalMonitoringRawDataPerTerm['term1'] = Map<String, dynamic>.from(body['goals']);
+              if (body['status'] is Map) _parseStatuses(body['status'], yearId);
+            }
+          }
+        }
+      }
+
+      // 3. If Term 1 is Approved, fetch Term 2
+      if (isTermTabEnabled('term2')) {
+        final t2QsRes = await _apiProvider.getTermQuestions(orgId, studentId, yearId, 'term2');
+        if (t2QsRes.statusCode == 200 || t2QsRes.statusCode == 201) {
+          termQuestionsCache['term2'] = (t2QsRes.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
+          
+          final t2DataRes = await _apiProvider.getGoalMonitoringTermData(studentId, yearId, 'term2');
+          if (t2DataRes.statusCode == 200 || t2DataRes.statusCode == 201) {
+            final body = t2DataRes.body;
+            if (body is Map) {
+              if (body['goals'] is Map) goalMonitoringRawDataPerTerm['term2'] = Map<String, dynamic>.from(body['goals']);
+              if (body['status'] is Map) _parseStatuses(body['status'], yearId);
+            }
+          }
+        }
+      }
+
+      _filterGoalMonitoringData();
+      isGoalMonitoringDataLoaded.value = true;
     } catch (e) {
-      print('Error fetching goal monitoring questions: $e');
-      Get.snackbar('Error', 'Could not fetch questions: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      debugPrint('Error in fetchGoalMonitoringQuestions: $e');
     } finally {
       isLoadingGoalMonitoringQuestions.value = false;
     }
   }
 
+  void _parseStatuses(dynamic statusMap, String yearId) {
+    debugPrint('DEBUG _parseStatuses: raw map=$statusMap, yearId=$yearId');
+    if (statusMap is Map) {
+      // Check if it's a flat map (keys are directly entry, term1, term2)
+      // or if it's nested under yearId
+      final Map<String, dynamic> actualStatus;
+      if (statusMap.containsKey('entry') || statusMap.containsKey('term1')) {
+        actualStatus = Map<String, dynamic>.from(statusMap);
+        debugPrint('DEBUG _parseStatuses: Using FLAT status map');
+      } else if (statusMap[yearId] is Map) {
+        actualStatus = Map<String, dynamic>.from(statusMap[yearId]);
+        debugPrint('DEBUG _parseStatuses: Using NESTED status map for year $yearId');
+      } else {
+        debugPrint('DEBUG _parseStatuses: No matching status format found. Keys: ${statusMap.keys}');
+        return;
+      }
+
+      goalMonitoringStatuses.assignAll({
+        'entry': actualStatus['entry']?.toString() ?? goalMonitoringStatuses['entry'] ?? 'N/A',
+        'term1': actualStatus['term1']?.toString() ?? goalMonitoringStatuses['term1'] ?? 'N/A',
+        'term2': actualStatus['term2']?.toString() ?? goalMonitoringStatuses['term2'] ?? 'N/A',
+      });
+      debugPrint('DEBUG _parseStatuses: Updated goalMonitoringStatuses to $goalMonitoringStatuses');
+    }
+  }
+
+  bool isTermTabEnabled(String termKey) {
+    if (termKey == 'entry') return true;
+    final entryStatus = (goalMonitoringStatuses['entry'] ?? '').toString().toLowerCase().trim();
+    final term1Status = (goalMonitoringStatuses['term1'] ?? '').toString().toLowerCase().trim();
+    
+    debugPrint('DEBUG isTermTabEnabled: term=$termKey entryStatus="$entryStatus" term1Status="$term1Status"');
+
+    if (termKey == 'term1') {
+      final canEnable = entryStatus.contains('approve');
+      debugPrint('DEBUG isTermTabEnabled: term1 canEnable=$canEnable');
+      return canEnable;
+    }
+    if (termKey == 'term2') {
+      final canEnable = term1Status.contains('approve');
+      debugPrint('DEBUG isTermTabEnabled: term2 canEnable=$canEnable');
+      return canEnable;
+    }
+    return false;
+  }
+
   Future<void> saveDraft() async {
-    final orgId = '68d4e4e20e437cd03453ccd8';
     final studentDetails = selectedIepStudentDetails;
     if (studentDetails == null) {
       Get.snackbar('Error', 'No student selected', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
@@ -717,80 +942,60 @@ class EducatorController extends GetxController {
 
     // Use the actual academic year ID as the year field and as keys in the payload
     final String yearKey = selectedIepYearId.value.isNotEmpty ? selectedIepYearId.value : "unknown_year";
-    
+
     final List<Map<String, dynamic>> allAnswersList = [];
-    final List<Map<String, dynamic>> goalsPayload = [];
-    
-    // Copy the usedPriorities to locally track new assignments
-    final localUsedPriorities = Set<int>.from(usedPriorities);
-    
-    int getNextPriority() {
-      for (int i = 1; i <= 100; i++) { // Increased range to be safe
-        if (!localUsedPriorities.contains(i)) {
-          localUsedPriorities.add(i);
-          return i;
-        }
-      }
-      return 100; // Fallback
-    }
 
-    // First pass: Collect all existing priorities from assessmentAnswers to avoid collisions
-    for (var ans in assessmentAnswers.values) {
-      if (ans['isGoal'] == true && ans['priority'] != null) {
-        final p = int.tryParse(ans['priority'].toString());
-        if (p != null) localUsedPriorities.add(p);
-      }
-    }
-
-    for (var domain in assessmentDomains) {
+    // Use allAssessmentDomains so answers are saved regardless of the active age-group filter.
+    for (var domain in allAssessmentDomains) {
       final questions = domain['questions'] as List? ?? [];
 
       for (var q in questions) {
         final qId = q['_id']?.toString() ?? '';
-        final topicId = q['topicId']?.toString() ?? qId;
-        final goalName = q['question']?.toString() ?? '';
+        if (qId.isEmpty) continue;
+
         final optionsList = q['options'] as List? ?? [];
-        
         final ans = assessmentAnswers[qId];
-        if (ans != null) {
-          final mainOptionStr = ans['mainOption']?.toString();
-          if (mainOptionStr != null && mainOptionStr.isNotEmpty) {
-             int optIndex = optionsList.indexWhere((o) => o.toString() == mainOptionStr);
-             if (optIndex == -1) optIndex = 0;
+        if (ans == null) continue;
 
-             final scoreOpt = ans['score']?.toString();
-             allAnswersList.add({
-                "questionId": qId,
-                "options": optIndex,
-                "checkboxValue": (scoreOpt != null && scoreOpt.isNotEmpty && scoreOpt != 'null') ? scoreOpt : null,
-                "badgeSelections": []
-             });
-          }
+        final mainOptionStr = ans['mainOption']?.toString();
+        if (mainOptionStr != null && mainOptionStr.isNotEmpty) {
+          int optIndex = optionsList.indexWhere((o) => o.toString() == mainOptionStr);
+          if (optIndex == -1) optIndex = 0;
 
-          if (ans['isGoal'] == true) {
-             final goalMap = <String, dynamic>{
-                "topicId": topicId,
-                "questionId": qId,
-                "goalType": ["School"],
-                "term": "entry",
-                "goalName": goalName,
-             };
-             if (ans['goalId'] != null) {
-                goalMap["_id"] = ans['goalId'];
-             }
-             
-             if (ans['priority'] != null) {
-                goalMap["priority"] = ans['priority'];
-             } else {
-                goalMap["priority"] = getNextPriority();
-                // Update local state so UI knows the assigned priority
-                ans['priority'] = goalMap["priority"];
-             }
-             goalsPayload.add(goalMap);
+          final scoreOpt = ans['score']?.toString();
+          final answerItem = <String, dynamic>{
+            "questionId": qId,
+            "options": optIndex,
+            "badgeSelections": [],
+          };
+          // Omit checkboxValue entirely when there is no score — sending null causes 400.
+          if (scoreOpt != null && scoreOpt.isNotEmpty && scoreOpt != 'null') {
+            answerItem["checkboxValue"] = scoreOpt;
           }
+          allAnswersList.add(answerItem);
         }
       }
     }
+
+    final Map<String, dynamic> goalsPayload = {};
+    final List<Map<String, dynamic>> entryGoals = [];
+    
+    for (var entry in assessmentAnswers.entries) {
+      if (entry.value['isGoal'] == true) {
+        entryGoals.add({
+          "questionId": entry.key,
+          "goalType": [entry.value['goalType'] ?? "School"],
+          "priority": entry.value['priority'] ?? 1,
+          "isGoal": true
+        });
+      }
+    }
+    
+    goalsPayload[yearKey] = {
+      "entry": entryGoals,
+      "term1": [],
+      "term2": []
+    };
 
     final payload = {
       "studentId": studentId,
@@ -802,34 +1007,30 @@ class EducatorController extends GetxController {
           "term2": []
         }
       },
-      "goals": {
-        yearKey: {
-          "entry": goalsPayload,
-          "term1": [],
-          "term2": []
-        }
-      },
+      "goals": goalsPayload,
       "activities": [],
-      "subject": [],
-      "deleteGoalIds": [],
-      "remarks": "",
-      "note": "",
-      "finalSubmitted": false
     };
 
     isSavingDraft.value = true;
     try {
-      print('DEBUG: Saving Draft Payload: $payload');
+      debugPrint('DEBUG saveDraft payload: $payload');
       final response = await _apiProvider.saveStudentGoals(payload);
-      print('DEBUG: Save Draft Response: ${response.statusCode} - ${response.body}');
+      debugPrint('DEBUG saveDraft response: ${response.statusCode} — ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Get.snackbar('Success', 'Assessment saved as draft successfully!', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
-        await fetchAssessmentQuestions(); // Sync UI with the server after saving
+        Get.snackbar('Success', 'Assessment saved as draft successfully!',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+        await fetchAssessmentQuestions();
       } else {
-        Get.snackbar('Error', 'Failed to save draft. Status: ${response.statusCode}', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        final apiMsg = response.body is Map
+            ? (response.body['message'] ?? response.body['error'] ?? response.body.toString())
+            : response.body?.toString() ?? 'Unknown error';
+        Get.snackbar('Error (${response.statusCode})', apiMsg.toString(),
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white,
+            duration: const Duration(seconds: 6));
       }
     } catch (e) {
-      Get.snackbar('Error', 'Could not save draft: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar('Error', 'Could not save draft: $e',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
     } finally {
       isSavingDraft.value = false;
     }
@@ -863,9 +1064,249 @@ class EducatorController extends GetxController {
 
   void toggleGoal(String questionId) {
     final current = assessmentAnswers[questionId] ?? <String, dynamic>{};
-    current['isGoal'] = !(current['isGoal'] ?? false);
+    bool isGoal = !(current['isGoal'] ?? false);
+    current['isGoal'] = isGoal;
+    if (isGoal && current['goalType'] == null) {
+      current['goalType'] = 'School';
+    }
     assessmentAnswers[questionId] = current;
     assessmentAnswers.refresh();
+  }
+
+  void toggleGoalType(String questionId) {
+    final current = assessmentAnswers[questionId] ?? <String, dynamic>{};
+    if (current['isGoal'] == true) {
+      current['goalType'] = current['goalType'] == 'Home' ? 'School' : 'Home';
+      assessmentAnswers[questionId] = current;
+      assessmentAnswers.refresh();
+    }
+  }
+
+  Future<void> reviewAssessment() async {
+    // 1. Identify goals from local state (don't call API yet)
+    final List<Map<String, dynamic>> goalsToReview = [];
+    for (var entry in assessmentAnswers.entries) {
+      if (entry.value['isGoal'] == true) {
+        String qText = 'Unknown Question';
+        // Find question text from domains
+        for (var d in allAssessmentDomains) {
+          final qs = d['questions'] as List?;
+          final q = qs?.firstWhere((q) => q['_id']?.toString() == entry.key, orElse: () => null);
+          if (q != null) {
+            qText = q['question']?.toString() ?? qText;
+            break;
+          }
+        }
+        goalsToReview.add({
+          'id': entry.key,
+          'question': qText,
+          'goalType': entry.value['goalType'] ?? 'School',
+        });
+      }
+    }
+
+    if (goalsToReview.isEmpty) {
+      Get.snackbar('Review', 'No goals selected to review.', 
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      return;
+    }
+
+    // 3. Show dialog
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.blue, Color(0xFF64B5F6)]),
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.rate_review, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Review Goals', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Please verify the goals identified from this assessment.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: Get.height * 0.5),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: goalsToReview.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final goal = goalsToReview[index];
+                    final qId = goal['id'];
+                    
+                    return Obx(() {
+                      final currentData = assessmentAnswers[qId] ?? {};
+                      final gType = currentData['goalType'] ?? 'School';
+                      
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(goal['question'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () => toggleGoalType(qId),
+                              child: Row(
+                                children: [
+                                  const Text('Goal Type: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: gType == 'School' ? Colors.blue.shade50 : Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: gType == 'School' ? Colors.blue.shade200 : Colors.green.shade200),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          gType == 'School' ? Icons.school : Icons.home,
+                                          size: 12,
+                                          color: gType == 'School' ? Colors.blue : Colors.green.shade800,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          gType == 'School' ? 'School Goal' : 'Home Goal',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: gType == 'School' ? Colors.blue : Colors.green.shade800,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.sync, size: 10, color: Colors.grey),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Get.back(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Get.back();
+                    await saveDraft(); // Save again if types were toggled
+                    isReviewComplete.value = true;
+                    Get.snackbar('Success', 'Goals confirmed and saved successfully!',
+                        snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  Future<void> submitAssessment() async {
+    final studentDetails = selectedIepStudentDetails;
+    if (studentDetails == null) return;
+    
+    final studentId = studentDetails['studentId']?.toString() ??
+                   studentDetails['id']?.toString() ??
+                   studentDetails['_id']?.toString();
+                   
+    final String yearKey = selectedIepYearId.value.isNotEmpty ? selectedIepYearId.value : "unknown_year";
+
+    if (studentId == null || studentId.isEmpty) {
+      Get.snackbar('Error', 'Invalid student ID', backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+
+    final payload = {
+      "studentId": studentId,
+      "year": yearKey,
+      "status": {
+        "entry": "submitted"
+      }
+    };
+
+    isSubmitting.value = true;
+    try {
+      final response = await _apiProvider.saveStudentGoals(payload);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.snackbar('Success', 'Assessment submitted successfully!',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+        
+        // Update local status in the list so UI updates immediately
+        final index = niepidStudentAssessments.indexWhere((s) {
+          final id = s['studentId']?.toString() ?? s['id']?.toString() ?? s['_id']?.toString();
+          return id == studentId;
+        });
+        
+        if (index != -1) {
+          final student = Map<String, dynamic>.from(niepidStudentAssessments[index]);
+          if (student['status'] == null) student['status'] = {};
+          student['status']['entry'] = 'submitted';
+          niepidStudentAssessments[index] = student;
+          niepidStudentAssessments.refresh();
+        }
+        
+        isReviewComplete.value = false; // Reset for next time
+      } else {
+        Get.snackbar('Error', 'Failed to submit: ${response.body}',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Submission error: $e',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      isSubmitting.value = false;
+    }
   }
 
   void updateSelectedDate(DateTime date) {
@@ -900,8 +1341,8 @@ class EducatorController extends GetxController {
     isLoggingInStudent.value = true;
     try {
       final response = await _apiProvider.studentLogin(userName, dob);
-      print('Student login response status: ${response.statusCode}');
-      print('Student login response body: ${response.body}');
+      debugPrint('Student login response status: ${response.statusCode}');
+      debugPrint('Student login response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = response.body;
@@ -950,6 +1391,316 @@ class EducatorController extends GetxController {
   void goToMoodBoardSubmission(Map<String, String> student) {
     Get.toNamed('/educator-mood-board-submission', arguments: student);
   }
+
+  void goToCareGiverMeeting() {
+    Get.toNamed('/educator-care-giver-meeting');
+  }
+
+  Future<void> fetchCareGiverMeetingData() async {
+    isLoadingCareGiverMeeting.value = true;
+    careGiverStudents.clear();
+    try {
+      final response = await _apiProvider.getCareGiverMeetingData();
+      debugPrint('--- Care Giver Meeting Response ---');
+      debugPrint('Status: ${response.statusCode}');
+      debugPrint('Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.body is Map) {
+          final students = response.body['students'];
+          if (students is List) {
+            careGiverStudents.value = students;
+          }
+        }
+      } else {
+        Get.snackbar('Error', 'Failed to load care giver meeting data',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      debugPrint('Error fetching care giver meeting data: $e');
+      Get.snackbar('Error', 'Could not load data: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+    } finally {
+      isLoadingCareGiverMeeting.value = false;
+    }
+  }
+
+
+
+  void setGoalMonitoringAnswer(String questionId, String option) {
+    final current = goalMonitoringAnswers[questionId] ?? <String, dynamic>{};
+    if (current['mainOption'] == option) {
+      current.remove('mainOption');
+      current.remove('score');
+    } else {
+      current['mainOption'] = option;
+      if (option != 'Partially Independent') {
+        current.remove('score');
+      }
+    }
+    goalMonitoringAnswers[questionId] = current;
+    goalMonitoringAnswers.refresh();
+  }
+
+  void setGoalMonitoringScore(String questionId, String score) {
+    final current = goalMonitoringAnswers[questionId] ?? <String, dynamic>{};
+    current['score'] = score;
+    goalMonitoringAnswers[questionId] = current;
+    goalMonitoringAnswers.refresh();
+  }
+
+  Future<void> saveGoalMonitoringDraft() async {
+    final studentId = selectedGoalMonitoringStudentId.value;
+    final yearId = selectedGoalMonitoringYearId.value;
+    final term = selectedGoalMonitoringTerm.value;
+
+    if (studentId.isEmpty || yearId.isEmpty) return;
+
+    final List<Map<String, dynamic>> goalsList = [];
+
+    goalMonitoringAnswers.forEach((qId, ans) {
+      final grade = ans['mainOption']?.toString() ?? '';
+      final score = ans['score']?.toString() ?? '';
+      if (grade.isNotEmpty) {
+        final combinedVal = score.isNotEmpty ? "$grade : $score" : grade;
+        
+        goalsList.add({
+          "questionId": qId,
+          "selectedOption": combinedVal,
+          "goalType": ans['goalType'] ?? ["School"],
+          "isGoal": true
+        });
+      }
+    });
+
+    final payload = {
+      "studentId": studentId,
+      "year": yearId,
+      "answer": {
+        yearId: {
+          "entry": [],
+          "term1": [],
+          "term2": []
+        }
+      },
+      "goals": {
+        yearId: {
+          "entry": term == 'entry' ? goalsList : (goalMonitoringRawDataPerTerm['entry']?[yearId]?['entry'] ?? []),
+          "term1": term == 'term1' ? goalsList : (goalMonitoringRawDataPerTerm['term1']?[yearId]?['term1'] ?? []),
+          "term2": term == 'term2' ? goalsList : (goalMonitoringRawDataPerTerm['term2']?[yearId]?['term2'] ?? []),
+        }
+      }
+    };
+
+    isSavingGoalMonitoringDraft.value = true;
+    try {
+      final response = await _apiProvider.saveStudentGoals(payload);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.snackbar('Success', 'Goal progress saved successfully!',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+        await fetchGoalMonitoringQuestions(); // Refresh statuses and data
+      } else {
+        Get.snackbar('Error', 'Failed to save: ${response.body}',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Save error: $e',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      isSavingGoalMonitoringDraft.value = false;
+    }
+  }
+
+  Future<void> submitGoalMonitoring() async {
+    if (!isGoalMonitoringReviewComplete.value) {
+      Get.snackbar('Error', 'Please review the goals before submitting.',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      return;
+    }
+    
+    final studentId = selectedGoalMonitoringStudentId.value;
+    final yearId = selectedGoalMonitoringYearId.value;
+    final term = selectedGoalMonitoringTerm.value;
+
+    if (studentId.isEmpty || yearId.isEmpty) return;
+
+    // First save the current data
+    await saveGoalMonitoringDraft();
+
+    // Then send the submit status payload
+    final payload = {
+      "studentId": studentId,
+      "year": yearId,
+      "status": {
+        term: "submitted"
+      }
+    };
+
+    isSubmittingGoalMonitoring.value = true;
+    try {
+      final response = await _apiProvider.saveStudentGoals(payload);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.snackbar('Success', 'Goal progress submitted successfully!',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+        await fetchGoalMonitoringQuestions();
+      } else {
+        Get.snackbar('Error', 'Failed to submit: ${response.body}',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Submission error: $e',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      isSubmittingGoalMonitoring.value = false;
+    }
+  }
+
+  void resetGoalMonitoring() {
+    goalMonitoringAnswers.clear();
+    goalMonitoringAnswers.refresh();
+  }
+
+  void toggleGoalMonitoringType(String questionId) {
+    final current = goalMonitoringAnswers[questionId] ?? <String, dynamic>{};
+    current['goalType'] = current['goalType'] == 'Home' ? 'School' : 'Home';
+    goalMonitoringAnswers[questionId] = current;
+    goalMonitoringAnswers.refresh();
+  }
+
+  void reviewGoalMonitoring() {
+    final List<Map<String, dynamic>> goalsToReview = [];
+    for (var domain in goalMonitoringDomains) {
+      final questions = domain['questions'] as List? ?? [];
+      for (var q in questions) {
+        final qId = q['_id']?.toString() ?? '';
+        final ans = goalMonitoringAnswers[qId];
+        if (ans != null) {
+          goalsToReview.add({
+            'id': qId,
+            'question': ans['goalName'] ?? q['question']?.toString() ?? 'Unknown Goal',
+            'goalType': ans['goalType'] ?? 'School',
+          });
+        }
+      }
+    }
+
+    if (goalsToReview.isEmpty) {
+      Get.snackbar('Review', 'No monitored goals to review.',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      return;
+    }
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.blue, Color(0xFF64B5F6)]),
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.rate_review, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Review Goals', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Verify the goal types for this term.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: Get.height * 0.5),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: goalsToReview.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final goal = goalsToReview[index];
+                    final qId = goal['id'];
+
+                    return Obx(() {
+                      final currentData = goalMonitoringAnswers[qId] ?? {};
+                      final gType = currentData['goalType'] ?? 'School';
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(goal['question'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () => toggleGoalMonitoringType(qId),
+                              child: Row(
+                                children: [
+                                  const Text('Goal Type: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: gType == 'School' ? Colors.blue.shade50 : Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: gType == 'School' ? Colors.blue.shade200 : Colors.green.shade200),
+                                    ),
+                                    child: Text(gType,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: gType == 'School' ? Colors.blue.shade700 : Colors.green.shade700)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              isGoalMonitoringReviewComplete.value = true;
+              Get.back();
+              Get.snackbar('Success', 'Review complete. You can now submit.',
+                  snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Save & Complete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   void logout() async {
     final prefs = await SharedPreferences.getInstance();

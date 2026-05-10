@@ -71,6 +71,7 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
         ),
       ),
       bottomNavigationBar: Obx(() {
+        final status = controller.selectedIepStudentDetails?['status']?['entry']?.toString().toLowerCase() ?? '';
         if (controller.assessmentDomains.isEmpty) {
           return const SizedBox.shrink();
         }
@@ -112,16 +113,34 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                     ),
                   ),
                 ),
-                _buildActionButton('Review', Colors.blue, () {
-                  Get.snackbar('Review', 'Reviewing assessment.');
-                }),
-                _buildActionButton('Submit', Colors.green, () {
-                  Get.snackbar('Submit', 'Assessment submitted successfully.');
-                }),
-                _buildActionButton('Reset', Colors.red, () {
-                  controller.assessmentAnswers.clear();
-                  Get.snackbar('Reset', 'Assessment cleared.');
-                }),
+                _buildActionButton('Review', Colors.blue, controller.isAllIepQuestionsAnswered ? () {
+                  controller.reviewAssessment();
+                } : null),
+                Obx(() => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ElevatedButton(
+                      onPressed: (controller.isReviewComplete.value && !controller.isSubmitting.value)
+                          ? controller.submitAssessment
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: controller.isSubmitting.value
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Submit',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                )),
+                _buildActionButton('Reset', Colors.red, null),
               ],
             ),
           ),
@@ -130,7 +149,7 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
     );
   }
 
-  Widget _buildActionButton(String text, Color color, VoidCallback onPressed) {
+  Widget _buildActionButton(String text, Color color, VoidCallback? onPressed) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -230,6 +249,7 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                     ? (String? newValue) {
                         if (newValue != null) {
                           controller.selectedIepAssessmentStudentId.value = newValue;
+                          controller.autoSetIepLevel();
                         }
                       }
                     : null,
@@ -343,6 +363,27 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                   icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
+                      // Check age and enforce rule
+                      final details = controller.selectedIepStudentDetails;
+                      final dob = details?['dateOfBirth']?.toString() ??
+                                  details?['dob']?.toString() ??
+                                  details?['date_of_birth']?.toString() ??
+                                  details?['DOB']?.toString();
+                      final age = controller.calculateAge(dob);
+                      
+                      if (age > 0) {
+                        if (age < 14 && newValue == '14-18 years') {
+                          Get.snackbar('Invalid Selection', 'Student age is $age. Please select "3-14 years".',
+                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+                          return;
+                        }
+                        if (age >= 14 && newValue == '3-14 years') {
+                          Get.snackbar('Invalid Selection', 'Student age is $age. Please select "14-18 years".',
+                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+                          return;
+                        }
+                      }
+                      
                       controller.selectedIepLevel.value = newValue;
                     }
                   },
@@ -402,22 +443,52 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
       if (controller.isLoadingQuestions.value) {
         return const Center(child: CircularProgressIndicator());
       }
-      
+
       final domains = controller.assessmentDomains;
-      if (domains.isEmpty) {
-        return const SizedBox.shrink();
+      final allDomains = controller.allAssessmentDomains;
+      final ageGroup = controller.selectedIepLevel.value;
+
+      // Domains fetched but nothing visible after filter
+      if (allDomains.isNotEmpty && domains.isEmpty && ageGroup.isNotEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Assessment Domains'),
+            const SizedBox(height: 12),
+            _buildAgeGroupBadge(ageGroup),
+            const SizedBox(height: 24),
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.filter_list_off, size: 48, color: Colors.grey.shade300),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No questions found for "$ageGroup".',
+                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
       }
+
+      if (domains.isEmpty) return const SizedBox.shrink();
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionTitle('Assessment Domains'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          if (ageGroup.isNotEmpty) _buildAgeGroupBadge(ageGroup),
+          const SizedBox(height: 12),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: domains.length,
             itemBuilder: (context, index) {
+              
               final domain = domains[index];
               return _buildDomainCard(domain);
             },
@@ -425,6 +496,32 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
         ],
       );
     });
+  }
+
+  Widget _buildAgeGroupBadge(String ageGroup) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.child_care, size: 15, color: AppTheme.primaryColor),
+          const SizedBox(width: 6),
+          Text(
+            'Age Group: $ageGroup',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDomainCard(Map<String, dynamic> domain) {
@@ -491,15 +588,9 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
         }),
         children: [
           if (questions.isNotEmpty)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTableHeader(),
-                  ..._buildQuestionRowsWithSubdomains(questions),
-                ],
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildQuestionCardsWithSubdomains(questions),
             )
           else
             const Padding(
@@ -511,174 +602,304 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
     );
   }
 
-  Widget _buildTableHeader() {
-    return Container(
-      width: 752, // 40 + 250 + 200 + 150 + 80 + 32 (padding)
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.3)),
-          top: BorderSide(color: Colors.grey.withOpacity(0.3)),
-        ),
-      ),
-      child: const Row(
-        children: [
-          SizedBox(width: 40, child: Text('No.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          SizedBox(width: 250, child: Text('Questions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          SizedBox(width: 200, child: Text('Grade', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          SizedBox(width: 150, child: Text('Score', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          SizedBox(width: 80, child: Center(child: Text('Goal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)))),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildQuestionRowsWithSubdomains(List<dynamic> questions) {
-    final rows = <Widget>[];
+  List<Widget> _buildQuestionCardsWithSubdomains(List<dynamic> questions) {
+    final widgets = <Widget>[];
     String currentSubdomain = '';
+    
+    // Reverse the questions list as requested
+    final reversedQuestions = questions.reversed.toList();
 
-    for (int i = 0; i < questions.length; i++) {
-      final q = questions[i];
+    for (int i = 0; i < reversedQuestions.length; i++) {
+      final q = reversedQuestions[i];
       final subdomain = q['subdomain']?.toString() ?? '';
 
       if (subdomain.isNotEmpty && subdomain != currentSubdomain) {
         currentSubdomain = subdomain;
-        rows.add(
-          Container(
-            width: 752,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            color: AppTheme.primaryColor.withOpacity(0.05),
-            child: Text(
-              currentSubdomain,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    currentSubdomain,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
       }
-      rows.add(_buildQuestionRow(q, i));
+      widgets.add(_buildQuestionCard(q, i));
     }
-    return rows;
+    return widgets;
   }
 
-  Widget _buildQuestionRow(dynamic questionData, int index) {
+  Widget _buildQuestionCard(dynamic questionData, int index) {
     final questionId = questionData['_id']?.toString() ?? 'q_$index';
     final questionText = questionData['question']?.toString() ?? 'Unknown Question';
     final options = questionData['options'] as List<dynamic>? ?? [];
 
-    return Container(
-      width: 752,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2))),
-      ),
-      child: Obx(() {
-        final answerData = controller.assessmentAnswers[questionId] ?? {};
-        final selectedMainOption = answerData['mainOption'] as String?;
-        final selectedScore = answerData['score'] as String?;
-        final isGoal = answerData['isGoal'] as bool? ?? false;
+    return Obx(() {
+      final answerData = controller.assessmentAnswers[questionId] ?? {};
+      final selectedMainOption = answerData['mainOption'] as String?;
+      final selectedScore = answerData['score'] as String?;
+      final isGoal = answerData['isGoal'] as bool? ?? false;
 
-        return Row(
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isGoal
+                ? Colors.green.shade300
+                : Colors.grey.shade200,
+            width: isGoal ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 40,
-              child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textPrimary)),
-            ),
-            SizedBox(
-              width: 250,
-              child: Text(questionText, style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
-            ),
-            SizedBox(
-              width: 200,
-              child: Column(
+            // ── Question header: number + text + goal flag ────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: options.map((opt) {
-                  final isSelected = selectedMainOption == opt.toString();
-                  return InkWell(
-                    onTap: () => controller.setAnswer(questionId, opt.toString()),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      questionText,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => controller.toggleGoal(questionId),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isGoal
+                            ? Colors.green.shade50
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                            size: 18,
-                            color: isSelected ? AppTheme.primaryColor : Colors.grey,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              opt.toString(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          if (isGoal) ...[
+                            GestureDetector(
+                              onTap: () => controller.toggleGoalType(questionId),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: (answerData['goalType'] ?? 'School') == 'School'
+                                      ? Colors.blue.shade50
+                                      : Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: (answerData['goalType'] ?? 'School') == 'School'
+                                        ? Colors.blue.shade200
+                                        : Colors.green.shade200,
+                                  ),
+                                ),
+                                child: Text(
+                                  (answerData['goalType'] ?? 'School') == 'School' ? 'SCH' : 'HM',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: (answerData['goalType'] ?? 'School') == 'School'
+                                        ? Colors.blue
+                                        : Colors.green.shade800,
+                                  ),
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
+                          ],
+                          Icon(
+                            isGoal ? Icons.flag : Icons.flag_outlined,
+                            color: isGoal ? Colors.green.shade600 : Colors.grey,
+                            size: 20,
                           ),
                         ],
                       ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ],
               ),
             ),
-            SizedBox(
-              width: 150,
-              child: selectedMainOption == 'Partially Independent'
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: ['Rarely (<35%)', 'Sometimes (36-70%)', 'Often (71-99%)'].map((scoreOpt) {
-                        final isScoreSelected = selectedScore == scoreOpt;
-                        return InkWell(
-                          onTap: () => controller.setScore(questionId, scoreOpt),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isScoreSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                  size: 16,
-                                  color: isScoreSelected ? Colors.orange : Colors.grey,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    scoreOpt,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isScoreSelected ? Colors.orange[800] : AppTheme.textSecondary,
-                                      fontWeight: isScoreSelected ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              ],
+
+            if (options.isNotEmpty) ...[
+              Divider(height: 1, color: Colors.grey.shade100),
+
+              // ── Grade options ─────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Grade',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: options.map((opt) {
+                        final isSelected = selectedMainOption == opt.toString();
+                        return GestureDetector(
+                          onTap: () =>
+                              controller.setAnswer(questionId, opt.toString()),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppTheme.primaryColor
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Text(
+                              opt.toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppTheme.textSecondary,
+                              ),
                             ),
                           ),
                         );
                       }).toList(),
-                    )
-                  : const SizedBox(),
-            ),
-            SizedBox(
-              width: 80,
-              child: InkWell(
-                onTap: () => controller.toggleGoal(questionId),
-                child: Center(
-                  child: Icon(
-                    isGoal ? Icons.flag : Icons.flag_outlined,
-                    color: isGoal ? Colors.green : Colors.grey,
-                    size: 28,
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
+
+            // ── Score sub-options (Partially Independent only) ────────
+            if (selectedMainOption == 'Partially Independent') ...[
+              Divider(height: 1, color: Colors.orange.shade100),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.tune, size: 13, color: Colors.orange.shade700),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Score',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...['Rarely(<35%)', 'Sometimes(36-70%)', 'Often(71-99%)']
+                        .map((scoreOpt) {
+                      final isScoreSelected = selectedScore == scoreOpt;
+                      return GestureDetector(
+                        onTap: () => controller.setScore(questionId, scoreOpt),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isScoreSelected
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: isScoreSelected
+                                    ? Colors.orange.shade600
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                scoreOpt,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isScoreSelected
+                                      ? Colors.orange.shade800
+                                      : AppTheme.textSecondary,
+                                  fontWeight: isScoreSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
           ],
-        );
-      }),
-    );
+        ),
+      );
+    });
   }
 }

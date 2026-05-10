@@ -238,7 +238,7 @@ class EducatorHomeView extends GetView<EducatorController> {
                   icon: Icons.people_outline,
                   title: 'Care Giver Meeting',
                   subtitle: 'Schedule and manage meetings',
-                  onTap: () {}),
+                  onTap: () => controller.goToCareGiverMeeting()),
               _buildMoreTile(
                   icon: Icons.summarize_outlined,
                   title: 'Student Reports',

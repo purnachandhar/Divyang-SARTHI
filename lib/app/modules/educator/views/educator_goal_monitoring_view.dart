@@ -42,8 +42,6 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildStudentDetailsCard(),
-                  const SizedBox(height: 24),
                   Center(
                     child: SizedBox(
                       width: double.infinity,
@@ -66,15 +64,103 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  _buildTermSelector(),
-                  const SizedBox(height: 24),
-                  _buildDomainsList(),
+                  Obx(() {
+                    if (!controller.isGoalMonitoringDataLoaded.value && !controller.isLoadingGoalMonitoringQuestions.value) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStudentDetailsCard(),
+                        const SizedBox(height: 24),
+                        _buildTermSelector(),
+                        const SizedBox(height: 24),
+                        _buildDomainsList(),
+                      ],
+                    );
+                  }),
                 ],
               );
             }),
           ],
         ),
       ),
+      bottomNavigationBar: Obx(() {
+        if (controller.goalMonitoringDomains.isEmpty) return const SizedBox.shrink();
+        final termStatus = (controller.goalMonitoringStatuses[controller.selectedGoalMonitoringTerm.value] ?? '').toLowerCase();
+        final isEditable = termStatus == 'pending' || termStatus == 'rework';
+        
+        if (!isEditable) return const SizedBox.shrink();
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Obx(() => ElevatedButton(
+                      onPressed: controller.isSavingGoalMonitoringDraft.value
+                          ? null
+                          : controller.saveGoalMonitoringDraft,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[700],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: controller.isSavingGoalMonitoringDraft.value
+                          ? const SizedBox(height: 16, width: 16,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Draft',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                    )),
+                  ),
+                ),
+                Obx(() => _buildActionButton('Review', Colors.blue, controller.isAllGoalMonitoringAnswered ? () {
+                  controller.reviewGoalMonitoring();
+                } : null)),
+                Obx(() => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ElevatedButton(
+                      onPressed: (controller.isGoalMonitoringReviewComplete.value && !controller.isSubmittingGoalMonitoring.value)
+                          ? controller.submitGoalMonitoring
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: (controller.isGoalMonitoringReviewComplete.value && !controller.isSubmittingGoalMonitoring.value)
+                            ? Colors.green
+                            : Colors.grey.shade400,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: controller.isSubmittingGoalMonitoring.value
+                          ? const SizedBox(height: 16, width: 16,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Submit',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                )),
+                _buildActionButton('Reset', Colors.red, controller.resetGoalMonitoring),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 
@@ -100,43 +186,50 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
     return Expanded(
       child: Obx(() {
         final isSelected = controller.selectedGoalMonitoringTerm.value == termKey;
+        final isEnabled = controller.isTermTabEnabled(termKey);
         final status = controller.goalMonitoringStatuses[termKey] ?? 'N/A';
-        print('Status: $status');
-        
+
         Color statusColor = AppTheme.textSecondary;
-        if (status.toLowerCase() == 'approve') {
-          statusColor = Colors.green;
-        } else if (status.toLowerCase() == 'pending') {
-          statusColor = Colors.orange;
-        }
+        if (status.toLowerCase() == 'approve') statusColor = Colors.green;
+        else if (status.toLowerCase() == 'pending') statusColor = Colors.orange;
+        else if (status.toLowerCase() == 'rework') statusColor = Colors.red;
 
         return GestureDetector(
-          onTap: () => controller.selectedGoalMonitoringTerm.value = termKey,
+          onTap: isEnabled ? () => controller.selectedGoalMonitoringTerm.value = termKey : null,
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isSelected ? Colors.white : Colors.transparent,
+              color: isSelected
+                  ? Colors.white
+                  : (isEnabled ? Colors.transparent : Colors.grey.shade100),
               borderRadius: BorderRadius.circular(8),
               boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      )
-                    ]
+                  ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
                   : [],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isEnabled)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 3),
+                        child: Icon(Icons.lock, size: 10, color: Colors.grey),
+                      ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isEnabled
+                            ? (isSelected ? AppTheme.primaryColor : AppTheme.textSecondary)
+                            : Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
                 if (status != 'N/A')
                   Text(
@@ -144,7 +237,7 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: statusColor,
+                      color: isEnabled ? statusColor : Colors.grey,
                     ),
                   ),
               ],
@@ -262,15 +355,9 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
         subtitle: Text('Questions: $questionsCount', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         children: [
           if (questions.isNotEmpty)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTableHeader(),
-                  ..._buildQuestionRowsWithSubdomains(questions),
-                ],
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildGoalQuestionCardsWithSubdomains(questions),
             )
           else
             const Padding(
@@ -282,36 +369,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
     );
   }
 
-  Widget _buildTableHeader() {
-    final isTermView = controller.selectedGoalMonitoringTerm.value != 'entry';
-    final totalWidth = isTermView ? 1000.0 : 852.0;
-    return Container(
-      width: totalWidth,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.3)),
-          top: BorderSide(color: Colors.grey.withOpacity(0.3)),
-        ),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 40, child: Text('No.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          const SizedBox(width: 250, child: Text('Question', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          SizedBox(
-            width: isTermView ? 300 : 150,
-            child: Text(isTermView ? 'Options' : 'Grade', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          ),
-          const SizedBox(width: 150, child: Text('Score', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          const SizedBox(width: 200, child: Text('Goal Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildQuestionRowsWithSubdomains(List<dynamic> questions) {
-    final rows = <Widget>[];
+  List<Widget> _buildGoalQuestionCardsWithSubdomains(List<dynamic> questions) {
+    final widgets = <Widget>[];
     String currentSubdomain = '';
 
     for (int i = 0; i < questions.length; i++) {
@@ -320,102 +379,269 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
 
       if (subdomain.isNotEmpty && subdomain != currentSubdomain) {
         currentSubdomain = subdomain;
-        rows.add(
-          Container(
-            width: controller.selectedGoalMonitoringTerm.value != 'entry' ? 1000 : 852,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            color: AppTheme.primaryColor.withOpacity(0.05),
-            child: Text(
-              currentSubdomain,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    currentSubdomain,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
       }
-      rows.add(_buildQuestionRow(q, i));
+      widgets.add(_buildGoalQuestionCard(q, i));
     }
-    return rows;
+    return widgets;
   }
 
-  Widget _buildQuestionRow(dynamic questionData, int index) {
+  Widget _buildGoalQuestionCard(dynamic questionData, int index) {
     final questionId = questionData['_id']?.toString() ?? 'q_$index';
     final questionText = questionData['question']?.toString() ?? 'Unknown Question';
     final List<dynamic> options = questionData['options'] ?? [];
 
-    return Container(
-      width: controller.selectedGoalMonitoringTerm.value != 'entry' ? 1000 : 852,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2))),
-      ),
-      child: Obx(() {
-        final isTermView = controller.selectedGoalMonitoringTerm.value != 'entry';
-        final answerData = controller.goalMonitoringAnswers[questionId] ?? {};
-        final grade = answerData['mainOption']?.toString() ?? 'N/A';
-        final score = answerData['score']?.toString() ?? 'N/A';
-        final goalType = answerData['goalType'] is List 
-            ? (answerData['goalType'] as List).join(', ') 
-            : (answerData['goalType']?.toString() ?? 'N/A');
+    return Obx(() {
+      final termStatus = (controller.goalMonitoringStatuses[controller.selectedGoalMonitoringTerm.value] ?? '').toLowerCase();
+      final isPending = termStatus == 'pending' || termStatus == 'rework';
+      final answerData = controller.goalMonitoringAnswers[questionId] ?? {};
+      final grade = answerData['mainOption']?.toString() ?? '';
+      final score = answerData['score']?.toString() ?? '';
+      final goalType = answerData['goalType'] is List
+          ? (answerData['goalType'] as List).join(', ')
+          : (answerData['goalType']?.toString() ?? '');
 
-        return Row(
+      final hasGrade = grade.isNotEmpty && grade != 'N/A';
+      final hasScore = score.isNotEmpty && score != 'N/A';
+      final hasGoalType = goalType.isNotEmpty && goalType != 'N/A';
+
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isPending ? AppTheme.primaryColor.withValues(alpha: 0.2) : Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 40,
-              child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textPrimary)),
+            // ── Question header ───────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryColor),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(questionText,
+                        style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary, height: 1.4)),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(
-              width: 250,
-              child: Text(questionText, style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
-            ),
-            SizedBox(
-              width: isTermView ? 300 : 150,
-              child: isTermView
-                  ? Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
+
+            // ── Editable options (when term is pending) ───────────────
+            if (isPending && options.isNotEmpty) ...[
+              Divider(height: 1, color: Colors.grey.shade100),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('SELECT GRADE',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
+                            color: AppTheme.textSecondary, letterSpacing: 0.8)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: options.map((opt) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Text(
-                            opt.toString(),
-                            style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                        final optStr = opt.toString();
+                        final isSelected = grade == optStr;
+                        return GestureDetector(
+                          onTap: () => controller.setGoalMonitoringAnswer(questionId, optStr),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Text(optStr,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected ? Colors.white : AppTheme.textPrimary)),
                           ),
                         );
                       }).toList(),
-                    )
-                  : Text(grade, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-            ),
-            SizedBox(
-              width: 150,
-              child: Text(score, style: const TextStyle(fontSize: 13, color: Colors.orange)),
-            ),
-            SizedBox(
-              width: 200,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: goalType != 'N/A' ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  goalType,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: goalType != 'N/A' ? FontWeight.bold : FontWeight.normal,
-                    color: goalType != 'N/A' ? AppTheme.primaryColor : AppTheme.textSecondary,
-                  ),
+                    ),
+                    // Score sub-options when Partially Independent is selected
+                    if (grade == 'Partially Independent') ...[
+                      const SizedBox(height: 10),
+                      const Text('SELECT SCORE',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
+                              color: AppTheme.textSecondary, letterSpacing: 0.8)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: ['Rarely(<35%)', 'Sometimes(36-70%)', 'Often(71-99%)'].map((s) {
+                          final isSelected = score == s;
+                          return GestureDetector(
+                            onTap: () => controller.setGoalMonitoringScore(questionId, s),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.orange.shade600 : Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected ? Colors.orange.shade600 : Colors.orange.shade200,
+                                ),
+                              ),
+                              child: Text(s,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      color: isSelected ? Colors.white : Colors.orange.shade700)),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ),
+            ],
+
+            // ── Read-only result chips ────────────────────────────────
+            if (!isPending && (hasGrade || hasScore || hasGoalType)) ...[
+              Divider(height: 1, color: Colors.grey.shade100),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (hasGrade)
+                      _buildResultChip(label: 'Grade', value: grade,
+                          bgColor: AppTheme.primaryColor.withValues(alpha: 0.08),
+                          textColor: AppTheme.primaryColor, icon: Icons.grade_outlined),
+                    if (hasScore)
+                      _buildResultChip(label: 'Score', value: score,
+                          bgColor: Colors.orange.shade50,
+                          textColor: Colors.orange.shade700, icon: Icons.tune),
+                    if (hasGoalType)
+                      _buildResultChip(label: 'Goal Type', value: goalType,
+                          bgColor: Colors.green.shade50,
+                          textColor: Colors.green.shade700, icon: Icons.flag_outlined),
+                  ],
+                ),
+              ),
+            ],
+
+            // ── Show current selection while editing ──────────────────
+            if (isPending && (hasGrade || hasScore)) ...[
+              Divider(height: 1, color: Colors.grey.shade100),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (hasGrade)
+                      _buildResultChip(label: 'Grade', value: grade,
+                          bgColor: AppTheme.primaryColor.withValues(alpha: 0.08),
+                          textColor: AppTheme.primaryColor, icon: Icons.grade_outlined),
+                    if (hasScore)
+                      _buildResultChip(label: 'Score', value: score,
+                          bgColor: Colors.orange.shade50,
+                          textColor: Colors.orange.shade700, icon: Icons.tune),
+                  ],
+                ),
+              ),
+            ],
           ],
-        );
-      }),
+        ),
+      );
+    });
+  }
+
+  Widget _buildResultChip({
+    required String label,
+    required String value,
+    required Color bgColor,
+    required Color textColor,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 11,
+              color: textColor.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -560,31 +786,19 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           _buildDetailRow('Age :', _getStudentAge()),
           const Divider(height: 32),
           _buildDetailRow('Teacher :', controller.currentEducator.value?.fullName ?? 'N/A'),
-          const Divider(height: 32),
-          // Status section
-          Obx(() {
-            final statuses = controller.goalMonitoringStatuses;
-            if (statuses.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Status',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildStatusBadge('Baseline', statuses['entry'] ?? 'N/A'),
-                    const SizedBox(width: 8),
-                    _buildStatusBadge('1st Term', statuses['term1'] ?? 'N/A'),
-                    const SizedBox(width: 8),
-                    _buildStatusBadge('2nd Term', statuses['term2'] ?? 'N/A'),
-                  ],
-                ),
-              ],
-            );
-          }),
+          // const Divider(height: 32),
+          // // Overall IEP Assessment Status
+          // Obx(() {
+          //   if (controller.selectedGoalMonitoringStudentId.value.isEmpty) return const SizedBox.shrink();
+          //   final status = _getOverallIepStatus();
+          //   return Column(
+          //     children: [
+          //       _buildDetailRow('IEP Status :', status, isStatus: true),
+                
+          //     ],
+          //   );
+          // }),
+          
         ],
       ),
     );
@@ -662,7 +876,20 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
     return age > 0 ? '$age Years' : 'N/A';
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  String _getOverallIepStatus() {
+    final studentId = controller.selectedGoalMonitoringStudentId.value;
+    final student = controller.niepidStudentAssessments.firstWhere(
+      (s) => (s['studentId']?.toString() ?? s['id']?.toString() ?? s['_id']?.toString()) == studentId,
+      orElse: () => <String, dynamic>{},
+    );
+    final statusMap = student['status'] as Map?;
+    if (statusMap != null) {
+      return (statusMap['entry']?.toString() ?? 'PENDING').toUpperCase();
+    }
+    return 'PENDING';
+  }
+
+  Widget _buildDetailRow(String label, String value, {bool isStatus = false}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -674,12 +901,64 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-          ),
+          child: isStatus 
+              ? _buildStatusBadgeUI(value)
+              : Text(
+                  value,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
         ),
       ],
+    );
+  }
+
+  Widget _buildStatusBadgeUI(String status) {
+    Color bg;
+    Color fg;
+    if (status == 'SUBMITTED' || status == 'APPROVE') {
+      bg = Colors.green.shade50;
+      fg = Colors.green.shade700;
+    } else if (status == 'PENDING') {
+      bg = Colors.orange.shade50;
+      fg = Colors.orange.shade700;
+    } else if (status == 'REWORK') {
+      bg = Colors.red.shade50;
+      fg = Colors.red.shade700;
+    } else {
+      bg = Colors.grey.shade100;
+      fg = AppTheme.textSecondary;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: fg.withOpacity(0.3)),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: fg),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+  Widget _buildActionButton(String text, Color color, VoidCallback? onPressed) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: onPressed != null ? color : Colors.grey.shade400,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: Text(text,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ),
     );
   }
 }

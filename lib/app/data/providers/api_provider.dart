@@ -185,13 +185,17 @@ class ApiProvider extends GetConnect {
   }
 
   Future<Response> getGoalMonitoringData(String studentId, String yearId) async {
+    return getGoalMonitoringTermData(studentId, yearId, 'entry');
+  }
+
+  Future<Response> getGoalMonitoringTermData(String studentId, String yearId, String term) async {
     final headers = await _buildAuthHeaders();
     final String token = headers['x-access-token'] ?? '';
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final url = '/niepid-disha-assessment/user/$studentId/$yearId/entry';
-    print('DEBUG: Calling Goal Monitoring Data API: ${httpClient.baseUrl}$url');
+    final url = '/niepid-disha-assessment/user/$studentId/$yearId/$term';
+    print('DEBUG: Calling Goal Monitoring Data API ($term): ${httpClient.baseUrl}$url');
     return get(
       url,
       headers: headers,
