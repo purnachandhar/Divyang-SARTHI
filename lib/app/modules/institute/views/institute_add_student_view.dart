@@ -34,6 +34,8 @@ class InstituteAddStudentView extends GetView<InstituteController> {
     final parentRelation = RxnString();
     final assignedProfessional = RxnString();
     final disabilityTypes = <String>[].obs;
+    final selectedDisability = RxnString();
+    final selectedCity = RxnString();
     final childPhotoPath = RxnString();
     final udidCertPath = RxnString();
     final otherIdPath = RxnString();
@@ -152,18 +154,17 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                         validator: (v) =>
                             v!.isEmpty ? 'Admission date is required' : null),
                     const SizedBox(height: 16),
-                    _buildDropdownField(
+                    Obx(() => _buildDropdownField(
                         label: 'Assign Professional*',
-                        hint: 'Select professionals',
-                        items: [
-                          'Rahul (Educator)',
-                          'Speech Therapist',
-                          'Physio Therapy'
-                        ],
+                        hint: controller.isEducatorsLoading.value 
+                            ? 'Loading professionals...' 
+                            : 'Select professionals',
+                        items: controller.educators.map((e) => "${e['firstName'] ?? ''} ${e['lastName'] ?? ''}".trim()).toList(),
                         value: assignedProfessional,
                         validator: (v) => v == null
                             ? 'Professional assignment is required'
-                            : null),
+                            : null)),
+
                     const SizedBox(height: 16),
                     _buildReadOnlyField(label: 'Country*', value: 'India'),
                     const SizedBox(height: 16),
@@ -172,6 +173,18 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                         hint: 'Enter your pin code',
                         controller: pinCodeController,
                         keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        onChanged: (val) async {
+                          if (val.length == 6) {
+                            final data = await controller.lookupPincode(val);
+                            if (data != null) {
+                              stateController.text = data['state'] ?? '';
+                              if (data['districts'] != null && (data['districts'] as List).isNotEmpty) {
+                                selectedCity.value = data['districts'][0];
+                              }
+                            }
+                          }
+                        },
                         validator: (v) =>
                             v!.isEmpty ? 'Pin code is required' : null),
                     const SizedBox(height: 16),
@@ -182,12 +195,15 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                         validator: (v) =>
                             v!.isEmpty ? 'State is required' : null),
                     const SizedBox(height: 16),
-                    _buildTextField(
+                    Obx(() => _buildDropdownField(
                         label: 'District / City*',
-                        hint: 'Enter District / City',
-                        controller: cityController,
+                        hint: controller.isPincodeLoading.value 
+                            ? 'Loading cities...' 
+                            : 'Select District / City',
+                        items: controller.availableDistricts,
+                        value: selectedCity,
                         validator: (v) =>
-                            v!.isEmpty ? 'City is required' : null),
+                            v == null ? 'City is required' : null)),
                     const SizedBox(height: 32),
                     _buildSectionTitle('Documents & Disability Details'),
                     const SizedBox(height: 16),
@@ -205,16 +221,14 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                     _buildFilePickerField(
                         label: 'Other ID Card', path: otherIdPath),
                     const SizedBox(height: 16),
-                    _buildMultiSelectField(
+                    Obx(() => _buildDropdownField(
                         label: 'Disability Type*',
-                        hint: 'Select Disability Type(s)',
-                        items: [
-                          'Physical',
-                          'Intellectual',
-                          'Multiple',
-                          'Other'
-                        ],
-                        selectedItems: disabilityTypes),
+                        hint: controller.isDisabilityLoading.value 
+                            ? 'Loading disability types...' 
+                            : 'Select Disability Type',
+                        items: controller.disabilityTypesList.map((e) => e['label']?.toString() ?? '').toList(),
+                        value: selectedDisability, // Assuming we'll define this RxnString
+                        validator: (v) => v == null ? 'Disability type is required' : null)),
                     const SizedBox(height: 32),
                     _buildSectionTitle('Address Details'),
                     const SizedBox(height: 16),
@@ -265,36 +279,87 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (formKey.currentState!.validate()) {
-                            if (!agreeToDeclaration.value) {
-                              Get.snackbar('Declaration Required',
-                                  'Please accept the declaration to proceed',
-                                  snackPosition: SnackPosition.BOTTOM,
-                                  backgroundColor:
-                                      Colors.orange.withOpacity(0.1));
-                              return;
-                            }
-                            Get.snackbar('Success',
-                                'Student registration initiated successfully!',
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: Colors.green.withOpacity(0.1));
-                            Get.back();
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Submit',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
-                      ),
+                      child: Obx(() => ElevatedButton(
+                            onPressed: controller.isAddingStudent.value
+                                ? null
+                                : () {
+                                    if (formKey.currentState!.validate()) {
+                                      if (!agreeToDeclaration.value) {
+                                        Get.snackbar('Declaration Required',
+                                            'Please accept the declaration to proceed',
+                                            snackPosition: SnackPosition.BOTTOM,
+                                            backgroundColor: Colors.orange
+                                                .withOpacity(0.1));
+                                        return;
+                                      }
+
+                                      // Collect disability types
+                                      // Note: The view uses a list of checkboxes or similar
+                                      
+                                      // Find selected professional ID
+                                      String? profId;
+                                      if (assignedProfessional.value != null) {
+                                        try {
+                                          final prof = controller.educators.firstWhere(
+                                            (e) => "${e['firstName'] ?? ''} ${e['lastName'] ?? ''}".trim() == assignedProfessional.value
+                                          );
+                                          profId = prof['_id']?.toString() ?? prof['id']?.toString();
+                                        } catch (e) {
+                                          print('Error finding professional: $e');
+                                        }
+                                      }
+                                      
+                                      controller.addStudent(
+                                        userName: usernameController.text,
+                                        fullName: fullNameController.text,
+                                        dateOfBirth: dobController.text,
+                                        studentClass: studentClass.value,
+                                        gender: gender.value!,
+                                        parentName: parentNameController.text,
+                                        parentEmail: parentEmailController.text,
+                                        parentMobile: parentMobileController.text,
+                                        parentRelation: parentRelation.value!,
+                                        admissionDate: admissionDateController.text,
+                                        pinCode: pinCodeController.text,
+                                        state: stateController.text,
+                                        district: selectedCity.value ?? '',
+                                        localAddress: permanentAddressController.text,
+                                        presentAddress: sameAsPermanent.value 
+                                          ? permanentAddressController.text 
+                                          : presentAddressController.text,
+                                        certificateUDID: udidNumberController.text,
+                                        numberUDID: udidNumberController.text,
+                                        disability: selectedDisability.value != null ? [selectedDisability.value!] : [],
+                                        studentDP: childPhotoPath.value,
+                                        idCard: otherIdPath.value,
+                                        assignedProfessionalId: profId,
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: controller.isAddingStudent.value
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Register Student',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                          )),
                     ),
                     const SizedBox(height: 48),
                   ],
@@ -354,6 +419,7 @@ class InstituteAddStudentView extends GetView<InstituteController> {
       bool isPassword = false,
       TextInputType keyboardType = TextInputType.text,
       int? maxLength,
+      void Function(String)? onChanged,
       String? Function(String?)? validator}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,6 +433,7 @@ class InstituteAddStudentView extends GetView<InstituteController> {
           obscureText: isPassword,
           keyboardType: keyboardType,
           maxLength: maxLength,
+          onChanged: onChanged,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
@@ -416,7 +483,7 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                   child: child!),
             );
             if (pickedDate != null)
-              controller.text = DateFormat('dd-mm-yyyy').format(pickedDate);
+              controller.text = DateFormat('dd-MM-yyyy').format(pickedDate);
           },
           decoration: InputDecoration(
             hintText: hint,
@@ -447,9 +514,12 @@ class InstituteAddStudentView extends GetView<InstituteController> {
         const SizedBox(height: 8),
         Obx(() => DropdownButtonFormField<String>(
               value: value.value,
-              hint: Text(hint),
+              isExpanded: true,
+              hint: Text(hint, overflow: TextOverflow.ellipsis),
               items: items
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, overflow: TextOverflow.ellipsis)))
                   .toList(),
               onChanged: (val) => value.value = val,
               validator: validator,
@@ -497,7 +567,7 @@ class InstituteAddStudentView extends GetView<InstituteController> {
         InkWell(
           onTap: () async {
             FilePickerResult? result = await FilePicker.platform.pickFiles();
-            if (result != null) path.value = result.files.single.name;
+            if (result != null) path.value = result.files.single.path;
           },
           child: Container(
             padding: const EdgeInsets.all(16),

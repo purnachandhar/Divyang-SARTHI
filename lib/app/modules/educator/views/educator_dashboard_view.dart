@@ -544,9 +544,9 @@ class EducatorDashboardView extends GetView<EducatorController> {
             runSpacing: 12,
             children: [
               _buildStatItem('Not Started', map['notStarted'], Colors.grey),
-              _buildStatItem('Draft', map['draft'], Colors.orange),
+              //_buildStatItem('Draft', map['draft'], Colors.orange),
               _buildStatItem('Submitted', map['submitted'], Colors.blue),
-              _buildStatItem('Rework', map['rework'], Colors.redAccent),
+              //_buildStatItem('Rework', map['rework'], Colors.redAccent),
               _buildStatItem('Approved', map['approved'], Colors.green),
               _buildStatItem('Caregivers', map['caregivers'], Colors.purple),
             ],
@@ -681,7 +681,9 @@ class EducatorDashboardView extends GetView<EducatorController> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildAssessmentStatusBadge('Entry', status['entry'])),
+              Expanded(child: _buildAssessmentStatusBadge('Baseline', status['entry'])),
+              const SizedBox(width: 8),
+              Expanded(child: _buildAssessmentStatusBadge('IEP', status['entry'])),
               const SizedBox(width: 8),
               Expanded(child: _buildAssessmentStatusBadge('Term 1', status['term1'])),
               const SizedBox(width: 8),

@@ -12,12 +12,10 @@ class IepQuestionnaireView extends GetView<InstituteController> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Obx(() {
-        final questionsData = controller.niepidQuestions.value;
-        if (questionsData == null) {
-          return const Center(child: Text("No questions found"));
+        final domains = controller.filteredNiepidDomains;
+        if (domains.isEmpty) {
+          return const Center(child: Text("No questions found for this age group"));
         }
-
-        final List domains = questionsData['domains'] ?? [];
 
         return Column(
           children: [
@@ -37,18 +35,44 @@ class IepQuestionnaireView extends GetView<InstituteController> {
                     icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                     onPressed: () => Get.back(),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Assessment Questions',
+                        const Text('Assessment Questions',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold)),
-                        SizedBox(height: 4),
-                        Text('Complete the assessment below',
-                            style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        const SizedBox(height: 4),
+                        Obx(() {
+                          final studentName = controller.selectedNiepidStudent.value ?? "Student";
+                          final age = controller.calculateAge(
+                            controller.selectedStudentData.value?['dateOfBirth'] ??
+                            controller.selectedStudentData.value?['dob'] ?? 
+                            controller.selectedStudentData.value?['age']
+                          );
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('$studentName • Age: $age',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              const SizedBox(height: 12),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    _buildStatBadge(Icons.quiz, 'Qs: ${controller.totalQuestionsCount}', Colors.white),
+                                    const SizedBox(width: 8),
+                                    _buildStatBadge(Icons.check_circle, 'Questions: ${controller.totalAnsweredCount}', Colors.white),
+                                    const SizedBox(width: 8),
+                                    _buildStatBadge(Icons.star, 'Goals: ${controller.totalGoalsCount}', Colors.orangeAccent),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
                       ],
                     ),
                   ),
@@ -109,10 +133,27 @@ class IepQuestionnaireView extends GetView<InstituteController> {
               color: AppTheme.textPrimary,
             ),
           ),
-          subtitle: Text(
-            '${questions.length} Questions',
-            style: const TextStyle(fontSize: 13, color: Colors.grey),
-          ),
+          subtitle: Obx(() {
+            final total = controller.getDomainTotalQuestionsCount(domain);
+            final answered = controller.getDomainAnsweredCount(domain);
+            final goals = controller.getDomainGoalsCount(domain);
+            
+            return Row(
+              children: [
+                Text(
+                  'Questions: $answered/$total',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                if (goals > 0) ...[
+                  const Text(' • ', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Goals: $goals',
+                    style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ],
+            );
+          }),
           children: [
             const Divider(height: 1),
             ...questions.map((q) => _buildQuestionItem(q)).toList(),
@@ -154,37 +195,128 @@ class IepQuestionnaireView extends GetView<InstituteController> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  question['question'] ?? 'No question text',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                    height: 1.4,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      question['question'] ?? 'No question text',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                    Obx(() {
+                      final questionId = question['_id']?.toString() ?? question['id']?.toString() ?? "";
+                      final isGoal = controller.isGoalForQuestion(questionId);
+                      final score = controller.getScoreForQuestion(questionId);
+                      
+                      if (!isGoal && (score == null || score.isEmpty)) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      return Wrap(
+                        spacing: 8,
+                        children: [
+                          if (isGoal)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star, color: Colors.orange, size: 12),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'GOAL',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (score != null && score.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check_circle_outline, color: AppTheme.primaryColor, size: 12),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Score: $score',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      );
+                    }),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: options.map((option) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Text(
-                  option.toString(),
-                  style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-                ),
-              );
-            }).toList(),
-          ),
+          Obx(() {
+            final questionId = question['_id']?.toString() ?? question['id']?.toString() ?? "";
+            final savedAnswer = controller.getAnswerForQuestion(questionId);
+            
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: options.map((option) {
+                final optionStr = option.toString();
+                final isSelected = savedAnswer == optionStr;
+                
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primaryColor : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!
+                    ),
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      )
+                    ] : null,
+                  ),
+                  child: Text(
+                    optionStr,
+                    style: TextStyle(
+                      fontSize: 13, 
+                      color: isSelected ? Colors.white : AppTheme.textSecondary,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          }),
           if (question['subdomain'] != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -192,6 +324,32 @@ class IepQuestionnaireView extends GetView<InstituteController> {
               style: TextStyle(fontSize: 11, color: Colors.black, fontStyle: FontStyle.italic),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBadge(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );

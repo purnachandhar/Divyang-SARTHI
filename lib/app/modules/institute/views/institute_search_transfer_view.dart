@@ -157,7 +157,7 @@ class InstituteSearchTransferView extends GetView<InstituteController> {
     );
   }
 
-  Widget _buildStudentResult(Map<String, String> data) {
+  Widget _buildStudentResult(Map<String, dynamic> data) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -184,10 +184,10 @@ class InstituteSearchTransferView extends GetView<InstituteController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(data['studentName']!,
+                    Text(data['studentName']?.toString() ?? 'N/A',
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('Enrollment: ${data['enrollment']}',
+                    Text('Enrollment: ${data['enrollment'] ?? 'N/A'}',
                         style: const TextStyle(color: AppTheme.textSecondary)),
                   ],
                 ),
@@ -197,12 +197,12 @@ class InstituteSearchTransferView extends GetView<InstituteController> {
           const SizedBox(height: 20),
           const Divider(),
           const SizedBox(height: 10),
-          _ResultItem(label: 'Class', value: data['class']!),
+          _ResultItem(label: 'Class', value: data['class']?.toString() ?? 'N/A'),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => controller.transferStudent(data['studentName']!),
+              onPressed: () => controller.transferStudent(data['studentName']?.toString() ?? 'Student'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(vertical: 16),

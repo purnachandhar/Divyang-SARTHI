@@ -69,125 +69,156 @@ class InstituteStudentView extends GetView<InstituteController> {
   }
 
   Widget _buildStudentList({required bool isMobile}) {
-    final List<Map<String, String>> students = [
-      {
-        'name': 'Arjun Singh',
-        'enrollment': '2026DIVG055219',
-        'gender': 'male',
-        'class': 'Grade 3',
-        'status': 'Active'
-      },
-      {
-        'name': 'Riya Singh',
-        'enrollment': '2026DIVG053404',
-        'gender': 'female',
-        'class': 'Preprimary',
-        'status': 'Active'
-      },
-      {
-        'name': 'Karan Gupta',
-        'enrollment': '2026DIVG055754',
-        'gender': 'male',
-        'class': 'Grade 1',
-        'status': 'Active'
-      },
-      {
-        'name': 'Sandeep',
-        'enrollment': '2025DIVG008674',
-        'class': 'Secondary',
-        'gender': 'male',
-        'status': 'Active'
-      },
-      {
-        'name': 'Test Niepid Disha',
-        'enrollment': '2026DIVG050799',
-        'class': 'Preprimary',
-        'gender': 'female',
-        'status': 'Active'
-      },
-    ];
+    return Obx(() {
+      if (controller.isStudentsLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-    if (isMobile) {
-      return ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: students.length,
-        itemBuilder: (context, index) {
-          final student = students[index];
-          return _StudentCard(
-            student: student,
-            onTap: () => controller.viewStudentDetail(student),
-          );
-        },
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: AppTable(
-          columns: const ['Name', 'Enrollment', 'Class', 'Gender', 'Status', 'Actions'],
-          rows: students.map((student) {
-            final bool isMale = student['gender'] == 'male';
-            return DataRow(
-              cells: [
-                DataCell(
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 15,
-                        backgroundColor: (isMale ? Colors.blue : Colors.pink).withOpacity(0.1),
-                        child: Icon(
-                          isMale ? Icons.face : Icons.face_retouching_natural,
-                          color: isMale ? Colors.blue : Colors.pink,
-                          size: 16,
+      final students = controller.students;
+
+      if (students.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No students found',
+                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: controller.fetchStudents,
+                child: const Text('Refresh'),
+              ),
+            ],
+          ),
+        );
+      }
+
+      if (isMobile) {
+        return ListView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: students.length,
+          itemBuilder: (context, index) {
+            final student = students[index];
+            return _StudentCard(
+              student: student,
+              onTap: () => controller.viewStudentDetail(student),
+            );
+          },
+        );
+      } else {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: Get.width - 48),
+              child: AppTable(
+                columns: const [
+                  'S.No',
+                  'Photo',
+                  'Username',
+                  'Student Name',
+                  'Enrollment Number',
+                  'Class',
+                  'Gender',
+                  'Date Of Birth',
+                  'Status',
+                  'Action'
+                ],
+                rows: List<DataRow>.generate(students.length, (index) {
+                  final student = students[index];
+                  final bool isMale = student['gender']?.toString().toLowerCase() == 'male';
+                  final String studentName = student['fullName'] ?? student['userName'] ?? 'N/A';
+                  final String enrollment = student['enrollmentNumber'] ?? 'N/A';
+                  final String userName = student['userName'] ?? 'N/A';
+                  final String className = student['class'] ?? 'N/A';
+                  final String gender = student['gender']?.toString().capitalizeFirst ?? 'N/A';
+                  final String dob = student['dateOfBirth']?.toString().split('T').first ?? 'N/A';
+                  final bool isVerified = student['isVerified'] ?? false;
+                  final String studentDP = student['studentDP'] ?? '';
+
+                  return DataRow(
+                    cells: [
+                      DataCell(Text((index + 1).toString())),
+                      DataCell(
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: (isMale ? Colors.blue : Colors.pink).withOpacity(0.1),
+                          backgroundImage: studentDP.isNotEmpty ? NetworkImage(studentDP) : null,
+                          child: studentDP.isEmpty
+                              ? Icon(
+                                  isMale ? Icons.face : Icons.face_retouching_natural,
+                                  color: isMale ? Colors.blue : Colors.pink,
+                                  size: 20,
+                                )
+                              : null,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Text(student['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      DataCell(Text(userName)),
+                      DataCell(Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                      DataCell(Text(enrollment)),
+                      DataCell(Text(className)),
+                      DataCell(Text(gender)),
+                      DataCell(Text(dob)),
+                      DataCell(Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          isVerified ? 'Verified' : 'Pending',
+                          style: TextStyle(
+                            color: isVerified ? Colors.green : Colors.orange,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )),
+                      DataCell(Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.visibility, color: AppTheme.primaryColor, size: 20),
+                            onPressed: () => controller.viewStudentDetail(student),
+                            tooltip: 'View',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                            onPressed: () {},
+                            tooltip: 'Edit',
+                          ),
+                        ],
+                      )),
                     ],
-                  ),
-                ),
-                DataCell(Text(student['enrollment']!)),
-                DataCell(Text(student['class']!)),
-                DataCell(Text(student['gender']!.capitalizeFirst!)),
-                DataCell(Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(student['status']!, style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
-                )),
-                DataCell(Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.visibility, color: AppTheme.primaryColor, size: 20),
-                      onPressed: () => controller.viewStudentDetail(student),
-                      tooltip: 'View',
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                      onPressed: () {},
-                      tooltip: 'Edit',
-                    ),
-                  ],
-                )),
-              ],
-            );
-          }).toList(),
-        ),
-      );
-    }
+                  );
+                }),
+              ),
+            ),
+          ),
+        );
+      }
+    });
   }
 }
 
 class _StudentCard extends StatelessWidget {
-  final Map<String, String> student;
+  final Map<String, dynamic> student;
   final VoidCallback onTap;
 
   const _StudentCard({required this.student, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final bool isMale = student['gender'] == 'male';
+    final bool isMale = student['gender']?.toString().toLowerCase() == 'male';
+    final String studentName = student['fullName'] ?? student['userName'] ?? 'N/A';
+    final String enrollment = student['enrollmentNumber'] ?? 'N/A';
+    final String className = student['class'] ?? 'N/A';
+    final bool isVerified = student['isVerified'] ?? false;
+    final String studentDP = student['studentDP'] ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -215,12 +246,17 @@ class _StudentCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: (isMale ? Colors.blue : Colors.pink).withOpacity(0.1),
                   shape: BoxShape.circle,
+                  image: studentDP.isNotEmpty 
+                      ? DecorationImage(image: NetworkImage(studentDP), fit: BoxFit.cover) 
+                      : null,
                 ),
-                child: Icon(
-                  isMale ? Icons.face : Icons.face_retouching_natural,
-                  color: isMale ? Colors.blue : Colors.pink,
-                  size: 30,
-                ),
+                child: studentDP.isEmpty
+                    ? Icon(
+                        isMale ? Icons.face : Icons.face_retouching_natural,
+                        color: isMale ? Colors.blue : Colors.pink,
+                        size: 30,
+                      )
+                    : null,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -228,13 +264,13 @@ class _StudentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      student['name']!,
+                      studentName,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'ID: ${student['enrollment']}',
+                      'ID: $enrollment',
                       style: const TextStyle(
                           color: AppTheme.textSecondary, fontSize: 12),
                     ),
@@ -247,7 +283,7 @@ class _StudentCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        student['class']!,
+                        className,
                         style: const TextStyle(
                           color: AppTheme.primaryColor,
                           fontSize: 10,
@@ -265,13 +301,13 @@ class _StudentCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      student['status']!,
-                      style: const TextStyle(
-                        color: Colors.green,
+                      isVerified ? 'Verified' : 'Pending',
+                      style: TextStyle(
+                        color: isVerified ? Colors.green : Colors.orange,
                         fontWeight: FontWeight.bold,
                         fontSize: 10,
                       ),

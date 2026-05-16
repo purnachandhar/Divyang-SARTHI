@@ -12,9 +12,11 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('IEP Assessment', style: TextStyle(color: Colors.white)),
+        title:
+            const Text('IEP Assessment', style: TextStyle(color: Colors.white)),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: AppGradients.primaryGradient),
+          decoration:
+              const BoxDecoration(gradient: AppGradients.primaryGradient),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -33,7 +35,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
               if (controller.selectedIepAssessmentStudentId.value.isEmpty) {
                 return const Center(
                   child: Text('Please select a student to view details.',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+                      style: TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 16)),
                 );
               }
               return Column(
@@ -49,16 +52,20 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                         onPressed: controller.fetchAssessmentQuestions,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: Obx(() => controller.isLoadingQuestions.value
                             ? const SizedBox(
                                 height: 24,
                                 width: 24,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 3))
                             : const Text('Get Assessment',
                                 style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white))),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white))),
                       ),
                     ),
                   ),
@@ -71,7 +78,10 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
         ),
       ),
       bottomNavigationBar: Obx(() {
-        final status = controller.selectedIepStudentDetails?['status']?['entry']?.toString().toLowerCase() ?? '';
+        final status = controller.selectedIepStudentDetails?['status']?['entry']
+                ?.toString()
+                .toLowerCase() ??
+            '';
         if (controller.assessmentDomains.isEmpty) {
           return const SizedBox.shrink();
         }
@@ -95,51 +105,69 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     child: ElevatedButton(
-                      onPressed: controller.isSavingDraft.value ? null : controller.saveDraft,
+                      onPressed: controller.isSavingDraft.value
+                          ? null
+                          : controller.saveDraft,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey[700],
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       child: controller.isSavingDraft.value
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
                           : const Text('Draft',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ),
-                _buildActionButton('Review', Colors.blue, controller.isAllIepQuestionsAnswered ? () {
-                  controller.reviewAssessment();
-                } : null),
+                _buildActionButton(
+                    'Review',
+                    Colors.blue,
+                    controller.isAllIepQuestionsAnswered
+                        ? () {
+                            controller.reviewAssessment();
+                          }
+                        : null),
                 Obx(() => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: ElevatedButton(
-                      onPressed: (controller.isReviewComplete.value && !controller.isSubmitting.value)
-                          ? controller.submitAssessment
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: ElevatedButton(
+                          onPressed: (controller.isReviewComplete.value &&
+                                  !controller.isSubmitting.value)
+                              ? controller.submitAssessment
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: controller.isSubmitting.value
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
+                              : const Text('Submit',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                        ),
                       ),
-                      child: controller.isSubmitting.value
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Submit',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                )),
+                    )),
                 _buildActionButton('Reset', Colors.red, null),
               ],
             ),
@@ -158,9 +186,16 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
           style: ElevatedButton.styleFrom(
             backgroundColor: color,
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-          child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+          child: Text(text,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ),
       ),
     );
@@ -183,7 +218,9 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Academic Year', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Academic Year',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -196,8 +233,11 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 hint: const Text('Select Academic Year'),
-                value: controller.selectedIepYearId.value.isNotEmpty ? controller.selectedIepYearId.value : null,
-                icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                value: controller.selectedIepYearId.value.isNotEmpty
+                    ? controller.selectedIepYearId.value
+                    : null,
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    color: AppTheme.primaryColor),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
                     controller.selectedIepYearId.value = newValue;
@@ -206,7 +246,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                     controller.selectedIepLevel.value = '';
                   }
                 },
-                items: years.map<DropdownMenuItem<String>>((Map<String, dynamic> iep) {
+                items: years
+                    .map<DropdownMenuItem<String>>((Map<String, dynamic> iep) {
                   return DropdownMenuItem<String>(
                     value: iep['id']?.toString() ?? '',
                     child: Text(controller.formatIepYear(iep)),
@@ -228,7 +269,9 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Student', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Student',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -241,28 +284,36 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 hint: const Text('Select Student'),
-                value: controller.selectedIepAssessmentStudentId.value.isNotEmpty
-                    ? controller.selectedIepAssessmentStudentId.value
-                    : null,
-                icon: Icon(Icons.keyboard_arrow_down, color: isYearSelected ? AppTheme.primaryColor : Colors.grey),
+                value:
+                    controller.selectedIepAssessmentStudentId.value.isNotEmpty
+                        ? controller.selectedIepAssessmentStudentId.value
+                        : null,
+                icon: Icon(Icons.keyboard_arrow_down,
+                    color:
+                        isYearSelected ? AppTheme.primaryColor : Colors.grey),
                 onChanged: isYearSelected
                     ? (String? newValue) {
                         if (newValue != null) {
-                          controller.selectedIepAssessmentStudentId.value = newValue;
+                          controller.selectedIepAssessmentStudentId.value =
+                              newValue;
                           controller.autoSetIepLevel();
                         }
                       }
                     : null,
-                items: students.asMap().entries.map<DropdownMenuItem<String>>((entry) {
+                items: students
+                    .asMap()
+                    .entries
+                    .map<DropdownMenuItem<String>>((entry) {
                   final index = entry.key;
                   final student = entry.value as Map<String, dynamic>;
                   // Use multiple fallbacks to ensure a unique ID is captured.
                   // If no ID is present, fallback to index to avoid duplicate value errors.
                   final id = student['studentId']?.toString() ??
-                             student['id']?.toString() ??
-                             student['_id']?.toString() ??
-                             'index_$index';
-                  final name = student['studentName']?.toString() ?? 'Unknown Student';
+                      student['id']?.toString() ??
+                      student['_id']?.toString() ??
+                      'index_$index';
+                  final name =
+                      student['studentName']?.toString() ?? 'Unknown Student';
                   return DropdownMenuItem<String>(
                     value: id,
                     child: Text(name),
@@ -310,7 +361,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
           const Divider(height: 32),
           _buildDetailRow('Age :', _getStudentAge()),
           const Divider(height: 32),
-          _buildDetailRow('Teacher :', controller.currentEducator.value?.fullName ?? 'N/A'),
+          _buildDetailRow(
+              'Teacher :', controller.currentEducator.value?.fullName ?? 'N/A'),
           const Divider(height: 32),
           _buildDetailRow('IEP Status :', _getIepStatus()),
         ],
@@ -344,7 +396,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
             width: 120,
             child: Text(
               'IEP Level * :',
-              style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+              style: TextStyle(
+                  fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
             ),
           ),
           Expanded(
@@ -359,37 +412,48 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                 child: DropdownButton<String>(
                   isExpanded: true,
                   hint: const Text('Select IEP Level'),
-                  value: controller.selectedIepLevel.value.isNotEmpty ? controller.selectedIepLevel.value : null,
-                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                  value: controller.selectedIepLevel.value.isNotEmpty
+                      ? controller.selectedIepLevel.value
+                      : null,
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: AppTheme.primaryColor),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
                       // Check age and enforce rule
                       final details = controller.selectedIepStudentDetails;
                       final dob = details?['dateOfBirth']?.toString() ??
-                                  details?['dob']?.toString() ??
-                                  details?['date_of_birth']?.toString() ??
-                                  details?['DOB']?.toString();
+                          details?['dob']?.toString() ??
+                          details?['date_of_birth']?.toString() ??
+                          details?['DOB']?.toString();
                       final age = controller.calculateAge(dob);
-                      
+
                       if (age > 0) {
                         if (age < 14 && newValue == '14-18 years') {
-                          Get.snackbar('Invalid Selection', 'Student age is $age. Please select "3-14 years".',
-                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+                          Get.snackbar('Invalid Selection',
+                              'Student age is $age. Please select "3-14 years".',
+                              snackPosition: SnackPosition.BOTTOM,
+                              backgroundColor: Colors.orange,
+                              colorText: Colors.white);
                           return;
                         }
                         if (age >= 14 && newValue == '3-14 years') {
-                          Get.snackbar('Invalid Selection', 'Student age is $age. Please select "14-18 years".',
-                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+                          Get.snackbar('Invalid Selection',
+                              'Student age is $age. Please select "14-18 years".',
+                              snackPosition: SnackPosition.BOTTOM,
+                              backgroundColor: Colors.orange,
+                              colorText: Colors.white);
                           return;
                         }
                       }
-                      
+
                       controller.selectedIepLevel.value = newValue;
                     }
                   },
                   items: const [
-                    DropdownMenuItem(value: '3-14 years', child: Text('3-14 years')),
-                    DropdownMenuItem(value: '14-18 years', child: Text('14-18 years')),
+                    DropdownMenuItem(
+                        value: '3-14 years', child: Text('3-14 years')),
+                    DropdownMenuItem(
+                        value: '14-18 years', child: Text('14-18 years')),
                   ],
                 ),
               ),
@@ -425,13 +489,15 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
           width: 120,
           child: Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
           ),
         ),
       ],
@@ -460,11 +526,13 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
             Center(
               child: Column(
                 children: [
-                  Icon(Icons.filter_list_off, size: 48, color: Colors.grey.shade300),
+                  Icon(Icons.filter_list_off,
+                      size: 48, color: Colors.grey.shade300),
                   const SizedBox(height: 12),
                   Text(
                     'No questions found for "$ageGroup".',
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                    style: const TextStyle(
+                        color: AppTheme.textSecondary, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -488,7 +556,6 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: domains.length,
             itemBuilder: (context, index) {
-              
               final domain = domains[index];
               return _buildDomainCard(domain);
             },
@@ -504,7 +571,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
+        border:
+            Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -560,15 +628,19 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                   child: Image.network(
                     iconUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.assessment, color: AppTheme.primaryColor),
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.assessment,
+                        color: AppTheme.primaryColor),
                   ),
                 )
               : const Icon(Icons.assessment, color: AppTheme.primaryColor),
         ),
         title: Text(
           domainName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+          style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.textPrimary),
         ),
         subtitle: Obx(() {
           final answered = controller.getDomainAnsweredCount(domain);
@@ -578,10 +650,22 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                Text('Questions :', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                Text(' $answered/$total', style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.primaryColor, fontSize: 12)),
-                const Text('  •  ', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                Text('Goals: $goals', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.orange, fontSize: 12)),
+                Text('Questions :',
+                    style: const TextStyle(
+                        color: AppTheme.textSecondary, fontSize: 12)),
+                Text(' $answered/$total',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                        fontSize: 12)),
+                const Text('  •  ',
+                    style:
+                        TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                Text('Goals: $goals',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange,
+                        fontSize: 12)),
               ],
             ),
           );
@@ -595,7 +679,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
           else
             const Padding(
               padding: EdgeInsets.all(16.0),
-              child: Text('No questions available.', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text('No questions available.',
+                  style: TextStyle(color: AppTheme.textSecondary)),
             ),
         ],
       ),
@@ -605,7 +690,7 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
   List<Widget> _buildQuestionCardsWithSubdomains(List<dynamic> questions) {
     final widgets = <Widget>[];
     String currentSubdomain = '';
-    
+
     // Reverse the questions list as requested
     final reversedQuestions = questions.reversed.toList();
 
@@ -651,7 +736,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
 
   Widget _buildQuestionCard(dynamic questionData, int index) {
     final questionId = questionData['_id']?.toString() ?? 'q_$index';
-    final questionText = questionData['question']?.toString() ?? 'Unknown Question';
+    final questionText =
+        questionData['question']?.toString() ?? 'Unknown Question';
     final options = questionData['options'] as List<dynamic>? ?? [];
 
     return Obx(() {
@@ -660,16 +746,17 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
       final selectedScore = answerData['score'] as String?;
       final isGoal = answerData['isGoal'] as bool? ?? false;
 
+      final hasAnswer =
+          selectedMainOption != null && selectedMainOption.isNotEmpty;
+
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isGoal
-                ? Colors.green.shade300
-                : Colors.grey.shade200,
-            width: isGoal ? 1.5 : 1,
+            color: !hasAnswer ? Colors.red.shade300 : Colors.grey.shade200,
+            width: !hasAnswer || isGoal ? 1.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
@@ -693,15 +780,17 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                     height: 26,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: !hasAnswer
+                          ? Colors.red.shade50
+                          : AppTheme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '${index + 1}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: AppTheme.primaryColor,
+                        color: !hasAnswer ? Colors.red : AppTheme.primaryColor,
                       ),
                     ),
                   ),
@@ -709,7 +798,7 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                   Expanded(
                     child: Text(
                       questionText,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.textPrimary,
                         height: 1.4,
@@ -717,57 +806,84 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => controller.toggleGoal(questionId),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isGoal
-                            ? Colors.green.shade50
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          if (isGoal) ...[
-                            GestureDetector(
-                              onTap: () => controller.toggleGoalType(questionId),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: (answerData['goalType'] ?? 'School') == 'School'
-                                      ? Colors.blue.shade50
-                                      : Colors.green.shade50,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: (answerData['goalType'] ?? 'School') == 'School'
-                                        ? Colors.blue.shade200
-                                        : Colors.green.shade200,
+                  if (selectedMainOption != 'Independent')
+                    GestureDetector(
+                      onTap: () => controller.toggleGoal(questionId),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isGoal
+                              ? Colors.green.shade50
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            if (isGoal) ...[
+                              GestureDetector(
+                                onTap: () =>
+                                    controller.toggleGoalType(questionId),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (answerData['goalType'] ?? 'School') ==
+                                                'School'
+                                            ? Colors.blue.shade50
+                                            : Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: (answerData['goalType'] ??
+                                                  'School') ==
+                                              'School'
+                                          ? Colors.blue.shade200
+                                          : Colors.green.shade200,
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  (answerData['goalType'] ?? 'School') == 'School' ? 'SCH' : 'HM',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: (answerData['goalType'] ?? 'School') == 'School'
-                                        ? Colors.blue
-                                        : Colors.green.shade800,
+                                  child: Text(
+                                    (answerData['goalType'] ?? 'School') ==
+                                            'School'
+                                        ? 'SCH'
+                                        : 'HM',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: (answerData['goalType'] ??
+                                                  'School') ==
+                                              'School'
+                                          ? Colors.blue
+                                          : Colors.green.shade800,
+                                    ),
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => controller
+                                    .showGoalDetailsDialog(questionId),
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.add,
+                                      color: Colors.white, size: 14),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Icon(
+                              isGoal ? Icons.flag : Icons.flag_outlined,
+                              color:
+                                  isGoal ? Colors.green.shade600 : Colors.grey,
+                              size: 20,
                             ),
-                            const SizedBox(width: 8),
                           ],
-                          Icon(
-                            isGoal ? Icons.flag : Icons.flag_outlined,
-                            color: isGoal ? Colors.green.shade600 : Colors.grey,
-                            size: 20,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -843,7 +959,8 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.tune, size: 13, color: Colors.orange.shade700),
+                        Icon(Icons.tune,
+                            size: 13, color: Colors.orange.shade700),
                         const SizedBox(width: 4),
                         Text(
                           'Score',

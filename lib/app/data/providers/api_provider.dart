@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/institute_registration_model.dart';
@@ -200,5 +201,117 @@ class ApiProvider extends GetConnect {
       url,
       headers: headers,
     );
+  }
+
+  Future<Response> getStudentsBySchoolId(String schoolId) async {
+    final headers = await _buildAuthHeaders();
+    return get(
+      '/admin/school/getstudentbyschoolid/$schoolId',
+      headers: headers,
+    );
+  }
+
+  Future<Response> addStudent(Map<String, dynamic> data) async {
+    final headers = await _buildAuthHeaders();
+    headers.remove('Content-Type');
+
+    final formData = FormData({});
+    
+    data.forEach((key, value) {
+      if (value is List) {
+        for (var i = 0; i < value.length; i++) {
+          formData.fields.add(MapEntry('$key[$i]', value[i].toString()));
+        }
+      } else if ((key == 'studentDP' || key == 'idCard') && 
+                 value != null && 
+                 value.toString().isNotEmpty && 
+                 File(value.toString()).existsSync()) {
+        formData.files.add(MapEntry(
+          key, 
+          MultipartFile(File(value.toString()), filename: value.toString().split('/').last)
+        ));
+      } else {
+        formData.fields.add(MapEntry(key, value.toString()));
+      }
+    });
+
+    return post(
+      '/student/users/addstudent',
+      formData,
+      headers: headers,
+    );
+  }
+
+  Future<Response> getDisabilityTypes() async {
+    return get('/dropdown?name=disability&onlyActive=true');
+  }
+
+  Future<Response> getPincodeDetails(String pincode) async {
+    // Use a fresh GetConnect instance for external APIs to avoid baseUrl issues
+    return GetConnect().get('https://api.postalpincode.in/pincode/$pincode');
+  }
+
+  Future<Response> verifyStudentGoals(String studentId) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/institute/verify-student-goals/$studentId';
+    print('DEBUG: Calling Verify Student Goals API: ${httpClient.baseUrl}$url');
+    return get(
+      url,
+      headers: headers,
+    );
+  }
+
+  Future<Response> getTermStudentGoals(String studentId, String yearId, String term) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/user/$studentId/$yearId/$term';
+    return get(url, headers: headers);
+  }
+
+  Future<Response> revokeSubmission(String studentId, String term, String comment) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/institute/final-submission-revoke/$studentId/$term';
+    return put(url, {'comment': comment}, headers: headers);
+  }
+
+  Future<Response> updateCareGiverStatus({
+    required String term,
+    required String action,
+    required List<String> studentIds,
+    String? comment,
+  }) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final body = {
+      'term': term,
+      'action': action,
+      'studentIds': studentIds,
+      if (comment != null) 'comment': comment,
+    };
+    return put('/niepid-disha-assessment/institute/care-giver/update', body, headers: headers);
+  }
+
+  Future<Response> approveSubmission(String studentId, String term) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = '/niepid-disha-assessment/institute/final-submission/$studentId/$term';
+    return put(url, {}, headers: headers);
   }
 }

@@ -8,14 +8,18 @@ class InstituteStudentDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, String> data = Get.arguments ?? {};
-    final bool isMale = data['gender'] == 'male';
+    final Map<String, dynamic> data = Get.arguments ?? {};
+    final bool isMale = data['gender']?.toString().toLowerCase() == 'male';
+    final String studentName = data['fullName'] ?? data['userName'] ?? 'N/A';
+    final String enrollment = data['enrollmentNumber'] ?? 'N/A';
+    final String dob = data['dateOfBirth']?.toString().split('T').first ?? 'N/A';
+    final bool isVerified = data['isVerified'] ?? false;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Column(
         children: [
-          _buildHeader(data['name'] ?? 'Student Detail'),
+          _buildHeader(studentName),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -26,24 +30,24 @@ class InstituteStudentDetailView extends StatelessWidget {
                   _buildInfoSection('Academic Information', [
                     _InfoRow(
                         label: 'Enrollment Number',
-                        value: data['enrollment'] ?? 'N/A'),
-                    _InfoRow(label: 'Class', value: data['class'] ?? 'N/A'),
+                        value: enrollment),
+                    _InfoRow(label: 'Class', value: data['class']?.toString() ?? 'N/A'),
                     _InfoRow(
-                        label: 'Username', value: data['username'] ?? 'N/A'),
+                        label: 'Username', value: data['userName']?.toString() ?? 'N/A'),
                     _InfoRow(
                         label: 'Status',
-                        value: data['status'] ?? 'N/A',
+                        value: isVerified ? 'Verified' : 'Pending',
                         isStatus: true),
                   ]),
                   const SizedBox(height: 24),
                   _buildInfoSection('Personal Details', [
                     _InfoRow(
                         label: 'Gender',
-                        value: data['gender']?.capitalizeFirst ?? 'N/A'),
+                        value: data['gender']?.toString().capitalizeFirst ?? 'N/A'),
                     _InfoRow(
-                        label: 'Date of Birth', value: data['dob'] ?? 'N/A'),
-                    const _InfoRow(
-                        label: 'Father\'s Name', value: 'Manish Kumar'),
+                        label: 'Date of Birth', value: dob),
+                    _InfoRow(
+                        label: 'Father\'s Name', value: data['ParentDetails']?['parentName']?.toString() ?? 'N/A'),
                     const _InfoRow(label: 'Category', value: 'General'),
                   ]),
                   const SizedBox(height: 32),
@@ -91,28 +95,35 @@ class InstituteStudentDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(Map<String, String> data, bool isMale) {
+  Widget _buildProfileHeader(Map<String, dynamic> data, bool isMale) {
+    final String studentName = data['fullName'] ?? data['userName'] ?? 'Unknown';
+    final String enrollment = data['enrollmentNumber'] ?? 'N/A';
+    final String studentDP = data['studentDP'] ?? '';
+
     return Column(
       children: [
         CircleAvatar(
           radius: 60,
           backgroundColor:
               (isMale ? Colors.blue : Colors.pink).withOpacity(0.1),
-          child: Icon(
-            isMale ? Icons.face : Icons.face_retouching_natural,
-            size: 70,
-            color: isMale ? Colors.blue : Colors.pink,
-          ),
+          backgroundImage: studentDP.isNotEmpty ? NetworkImage(studentDP) : null,
+          child: studentDP.isEmpty 
+              ? Icon(
+                  isMale ? Icons.face : Icons.face_retouching_natural,
+                  size: 70,
+                  color: isMale ? Colors.blue : Colors.pink,
+                )
+              : null,
         ),
         const SizedBox(height: 16),
         Text(
-          data['name'] ?? 'Unknown',
+          studentName,
           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
         Text(
-          'Student - ${data['enrollment']}',
+          'Student - $enrollment',
           style: const TextStyle(color: AppTheme.textSecondary, fontSize: 16),
         ),
       ],

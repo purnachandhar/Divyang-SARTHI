@@ -431,6 +431,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
       final hasGrade = grade.isNotEmpty && grade != 'N/A';
       final hasScore = score.isNotEmpty && score != 'N/A';
       final hasGoalType = goalType.isNotEmpty && goalType != 'N/A';
+      final remarks = answerData['remarks']?.toString() ?? '';
+      final hasRemarks = remarks.isNotEmpty && remarks != 'null';
 
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -468,10 +470,30 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryColor),
                     ),
                   ),
-                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(questionText,
-                        style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary, height: 1.4)),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(questionText,
+                              style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary, height: 1.4)),
+                        ),
+                        if (isPending || controller.getGoalRemarksFromAllTerms(questionId).isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => controller.showGoalMonitoringRemarksDialog(questionId, questionText),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(isPending ? Icons.add : Icons.visibility, size: 16, color: AppTheme.primaryColor),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -961,4 +983,6 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
       ),
     );
   }
+
+
 }

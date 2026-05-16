@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,6 +67,7 @@ class EducatorController extends GetxController {
   var isLoadingQuestions = false.obs;
   var isSavingDraft = false.obs;
   var assessmentAnswers = <String, Map<String, dynamic>>{}.obs;
+  var goalRemarks = <String, String>{}.obs; // questionId -> remarks
   var usedPriorities = <int>{}.obs;
   var isReviewComplete = false.obs;
   var isSubmitting = false.obs;
@@ -505,13 +507,18 @@ class EducatorController extends GetxController {
                           if (p != null) usedPriorities.add(p);
                         }
                         
-                        if (qId != null && qId.isNotEmpty && goalItem['isGoal'] == true) {
-                          final existing = assessmentAnswers[qId] ?? <String, dynamic>{};
-                          existing['isGoal'] = true;
-                          existing['goalId'] = goalItem['_id'];
-                          existing['priority'] = goalItem['priority'];
-                          assessmentAnswers[qId] = existing;
-                        }
+                          if (qId != null && qId.isNotEmpty && goalItem['isGoal'] == true) {
+                            final existing = assessmentAnswers[qId] ?? <String, dynamic>{};
+                            existing['isGoal'] = true;
+                            existing['goalId'] = goalItem['_id'];
+                            existing['priority'] = goalItem['priority'];
+                            assessmentAnswers[qId] = existing;
+                            
+                            // Load remarks if exists
+                            if (goalItem['remarks'] != null && goalItem['remarks'].toString().isNotEmpty && goalItem['remarks'].toString() != 'null') {
+                              goalRemarks[qId] = goalItem['remarks'].toString();
+                            }
+                          }
                       }
                     }
                   }
@@ -586,17 +593,18 @@ class EducatorController extends GetxController {
       final cachedDomains = termQuestionsCache[termKey];
       if (cachedDomains != null && cachedDomains.isNotEmpty) {
         goalMonitoringAnswers.clear();
-        // Overlay goals data onto the term questions
-        final yearGoals = goalMonitoringRawData[yearId];
-        if (yearGoals is Map) {
-          final termList = yearGoals[termKey] as List?;
-          if (termList != null) {
-            for (var goalItem in termList) {
+        
+        // 1. Get Baseline (entry) goals
+        final baselineRaw = goalMonitoringRawDataPerTerm['entry'];
+        if (baselineRaw != null && baselineRaw[yearId] is Map) {
+          final entryList = baselineRaw[yearId]['entry'] as List?;
+          if (entryList != null) {
+            for (var goalItem in entryList) {
               final qId = goalItem['questionId']?.toString();
               if (qId != null && qId.isNotEmpty) {
-                final selectedOpt = goalItem['selectedOption']?.toString() ?? 'N/A';
+                final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
                 String grade = selectedOpt;
-                String score = 'N/A';
+                String score = '';
                 if (selectedOpt.contains(':')) {
                   final parts = selectedOpt.split(':');
                   grade = parts[0].trim();
@@ -607,7 +615,35 @@ class EducatorController extends GetxController {
                   'score': score,
                   'goalType': goalItem['goalType'],
                   'goalName': goalItem['goalName'],
+                  'remarks': goalItem['remarks'],
                 };
+              }
+            }
+          }
+        }
+
+        // 2. Override with current term goals
+        final termRaw = goalMonitoringRawDataPerTerm[termKey];
+        if (termRaw != null && termRaw[yearId] is Map) {
+          final termList = termRaw[yearId][termKey] as List?;
+          if (termList != null && termList.isNotEmpty) {
+            for (var goalItem in termList) {
+              final qId = goalItem['questionId']?.toString();
+              if (qId != null && qId.isNotEmpty && goalMonitoringAnswers.containsKey(qId)) {
+                final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
+                String grade = selectedOpt;
+                String score = '';
+                if (selectedOpt.contains(':')) {
+                  final parts = selectedOpt.split(':');
+                  grade = parts[0].trim();
+                  score = parts.sublist(1).join(':').trim();
+                }
+                final currentAns = goalMonitoringAnswers[qId] ?? {};
+                currentAns['mainOption'] = grade;
+                currentAns['score'] = score;
+                if (goalItem['goalType'] != null) currentAns['goalType'] = goalItem['goalType'];
+                if (goalItem['remarks'] != null) currentAns['remarks'] = goalItem['remarks'];
+                goalMonitoringAnswers[qId] = currentAns;
               }
             }
           }
@@ -652,7 +688,35 @@ class EducatorController extends GetxController {
               'score': score,
               'goalType': goalItem['goalType'],
               'goalName': goalItem['goalName'],
+              'remarks': goalItem['remarks'],
             };
+          }
+        }
+      }
+
+      // Override with current term's saved values if they exist
+      if (termKey != 'entry') {
+        final currentTermList = yearGoals[termKey] as List?;
+        if (currentTermList != null && currentTermList.isNotEmpty) {
+          for (var goalItem in currentTermList) {
+            final qId = goalItem['questionId']?.toString();
+            if (qId != null && qId.isNotEmpty && goalQuestionIds.contains(qId)) {
+              final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
+              String grade = selectedOpt;
+              String score = '';
+              if (selectedOpt.contains(':')) {
+                final parts = selectedOpt.split(':');
+                grade = parts[0].trim();
+                score = parts.sublist(1).join(':').trim();
+              }
+              
+              final currentAns = goalMonitoringAnswers[qId] ?? {};
+              currentAns['mainOption'] = grade;
+              currentAns['score'] = score;
+              if (goalItem['goalType'] != null) currentAns['goalType'] = goalItem['goalType'];
+              if (goalItem['remarks'] != null) currentAns['remarks'] = goalItem['remarks'];
+              goalMonitoringAnswers[qId] = currentAns;
+            }
           }
         }
       }
@@ -982,11 +1046,24 @@ class EducatorController extends GetxController {
     
     for (var entry in assessmentAnswers.entries) {
       if (entry.value['isGoal'] == true) {
+        String qText = '';
+        // Find question text for goalName
+        for (var d in allAssessmentDomains) {
+          final qs = d['questions'] as List?;
+          final q = qs?.firstWhere((q) => q['_id']?.toString() == entry.key, orElse: () => null);
+          if (q != null) {
+            qText = q['question']?.toString() ?? '';
+            break;
+          }
+        }
+
         entryGoals.add({
           "questionId": entry.key,
+          "goalName": qText,
+          "selectedOption": entry.value['mainOption'] ?? "",
           "goalType": [entry.value['goalType'] ?? "School"],
-          "priority": entry.value['priority'] ?? 1,
-          "isGoal": true
+          "isGoal": true,
+          "remarks": goalRemarks[entry.key] ?? ""
         });
       }
     }
@@ -1000,6 +1077,7 @@ class EducatorController extends GetxController {
     final payload = {
       "studentId": studentId,
       "year": yearKey,
+      "goals": goalsPayload,
       "answer": {
         yearKey: {
           "entry": allAnswersList,
@@ -1007,13 +1085,13 @@ class EducatorController extends GetxController {
           "term2": []
         }
       },
-      "goals": goalsPayload,
       "activities": [],
     };
 
     isSavingDraft.value = true;
     try {
-      debugPrint('DEBUG saveDraft payload: $payload');
+      final jsonPayload = jsonEncode(payload);
+      debugPrint('DEBUG saveDraft payload: $jsonPayload');
       final response = await _apiProvider.saveStudentGoals(payload);
       debugPrint('DEBUG saveDraft response: ${response.statusCode} — ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -1046,6 +1124,10 @@ class EducatorController extends GetxController {
       if (option != 'Partially Independent') {
         current.remove('score');
       }
+      // If Independent is selected, it cannot be a goal
+      if (option == 'Independent') {
+        current['isGoal'] = false;
+      }
     }
     assessmentAnswers[questionId] = current;
     assessmentAnswers.refresh();
@@ -1064,6 +1146,14 @@ class EducatorController extends GetxController {
 
   void toggleGoal(String questionId) {
     final current = assessmentAnswers[questionId] ?? <String, dynamic>{};
+    
+    // Rule: Independent selection cannot be a goal
+    if (current['mainOption'] == 'Independent') {
+      Get.snackbar('Goal Selection', 'Tasks marked as "Independent" cannot be set as goals.',
+          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      return;
+    }
+
     bool isGoal = !(current['isGoal'] ?? false);
     current['isGoal'] = isGoal;
     if (isGoal && current['goalType'] == null) {
@@ -1071,6 +1161,199 @@ class EducatorController extends GetxController {
     }
     assessmentAnswers[questionId] = current;
     assessmentAnswers.refresh();
+  }
+
+  void showGoalDetailsDialog(String questionId) {
+    final remarkController = TextEditingController(text: goalRemarks[questionId] ?? '');
+    final charCount = (remarkController.text.length).obs;
+
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Goal Details', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Add details :', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: remarkController,
+              maxLines: 4,
+              maxLength: 300,
+              onChanged: (val) => charCount.value = val.length,
+              decoration: InputDecoration(
+                hintText: 'Enter your remark here...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Obx(() => Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${charCount.value} / (max-300)',
+                style: TextStyle(fontSize: 11, color: charCount.value > 300 ? Colors.red : Colors.grey),
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              goalRemarks[questionId] = remarkController.text;
+              Get.back();
+              Get.snackbar('Success', 'Goal details updated', 
+                snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Map<String, String> getGoalRemarksFromAllTerms(String questionId) {
+    final Map<String, String> remarks = {};
+    final yearId = selectedGoalMonitoringYearId.value;
+    final terms = ['entry', 'term1', 'term2'];
+    
+    for (var term in terms) {
+      final rawData = goalMonitoringRawDataPerTerm[term];
+      if (rawData != null && rawData[yearId] is Map) {
+        final termList = rawData[yearId][term] as List?;
+        if (termList != null) {
+          for (var item in termList) {
+            if (item['questionId']?.toString() == questionId) {
+              final rem = item['remarks']?.toString();
+              if (rem != null && rem.trim().isNotEmpty && rem != 'null') {
+                remarks[term] = rem;
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+    return remarks;
+  }
+
+  void showGoalMonitoringRemarksDialog(String questionId, String questionText) {
+    final currentTerm = selectedGoalMonitoringTerm.value;
+    final termStatus = (goalMonitoringStatuses[currentTerm] ?? '').toLowerCase();
+    final isPending = termStatus == 'pending' || termStatus == 'rework';
+    
+    final pastRemarks = getGoalRemarksFromAllTerms(questionId);
+    
+    // Get current remark from local edits if any, otherwise from past
+    final currentAns = goalMonitoringAnswers[questionId] ?? {};
+    final localRemark = currentAns['remarks']?.toString() ?? pastRemarks[currentTerm] ?? '';
+    
+    final remarkController = TextEditingController(text: localRemark);
+    final charCount = (remarkController.text.length).obs;
+
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Goal Remarks', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(questionText, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 16),
+                
+                // Show past remarks
+                if (pastRemarks.isNotEmpty) ...[
+                  const Text('Previous Remarks:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  ...pastRemarks.entries.map((e) {
+                    String title = e.key == 'entry' ? 'Baseline' : (e.key == 'term1' ? 'Term 1' : 'Term 2');
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
+                          const SizedBox(height: 4),
+                          Text(e.value, style: const TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 16),
+                ],
+                
+                // Add/Edit current term remark
+                if (isPending) ...[
+                  Text('Add Remark for ${currentTerm == "entry" ? "Baseline" : (currentTerm == "term1" ? "Term 1" : "Term 2")} :', 
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: remarkController,
+                    maxLines: 4,
+                    maxLength: 300,
+                    onChanged: (val) => charCount.value = val.length,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your remark here...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Obx(() => Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${charCount.value} / (max-300)',
+                      style: TextStyle(fontSize: 11, color: charCount.value > 300 ? Colors.red : Colors.grey),
+                    ),
+                  )),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          if (isPending)
+            ElevatedButton(
+              onPressed: () {
+                final ans = Map<String, dynamic>.from(goalMonitoringAnswers[questionId] ?? {});
+                ans['remarks'] = remarkController.text;
+                goalMonitoringAnswers[questionId] = ans;
+                Get.back();
+                Get.snackbar('Success', 'Remark updated', 
+                  snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+        ],
+      ),
+    );
   }
 
   void toggleGoalType(String questionId) {
@@ -1470,9 +1753,11 @@ class EducatorController extends GetxController {
         
         goalsList.add({
           "questionId": qId,
+          "goalName": ans['goalName'] ?? 'Unknown Goal',
           "selectedOption": combinedVal,
-          "goalType": ans['goalType'] ?? ["School"],
-          "isGoal": true
+          "goalType": ans['goalType'] is List ? ans['goalType'] : [ans['goalType'] ?? "School"],
+          "isGoal": true,
+          "remarks": ans['remarks'] ?? ""
         });
       }
     });
@@ -1480,20 +1765,13 @@ class EducatorController extends GetxController {
     final payload = {
       "studentId": studentId,
       "year": yearId,
-      "answer": {
-        yearId: {
-          "entry": [],
-          "term1": [],
-          "term2": []
-        }
-      },
       "goals": {
         yearId: {
-          "entry": term == 'entry' ? goalsList : (goalMonitoringRawDataPerTerm['entry']?[yearId]?['entry'] ?? []),
-          "term1": term == 'term1' ? goalsList : (goalMonitoringRawDataPerTerm['term1']?[yearId]?['term1'] ?? []),
-          "term2": term == 'term2' ? goalsList : (goalMonitoringRawDataPerTerm['term2']?[yearId]?['term2'] ?? []),
+          "entry": term == 'entry' ? goalsList : [],
+          "term1": term == 'term1' ? goalsList : [],
+          "term2": term == 'term2' ? goalsList : [],
         }
-      }
+      },
     };
 
     isSavingGoalMonitoringDraft.value = true;
@@ -1566,7 +1844,9 @@ class EducatorController extends GetxController {
 
   void toggleGoalMonitoringType(String questionId) {
     final current = goalMonitoringAnswers[questionId] ?? <String, dynamic>{};
-    current['goalType'] = current['goalType'] == 'Home' ? 'School' : 'Home';
+    final gRaw = current['goalType'];
+    final gStr = gRaw is List ? (gRaw.isNotEmpty ? gRaw.first.toString() : 'School') : (gRaw?.toString() ?? 'School');
+    current['goalType'] = gStr == 'Home' ? 'School' : 'Home';
     goalMonitoringAnswers[questionId] = current;
     goalMonitoringAnswers.refresh();
   }
@@ -1636,7 +1916,8 @@ class EducatorController extends GetxController {
 
                     return Obx(() {
                       final currentData = goalMonitoringAnswers[qId] ?? {};
-                      final gType = currentData['goalType'] ?? 'School';
+                      final gRaw = currentData['goalType'];
+                      final gType = gRaw is List ? (gRaw.isNotEmpty ? gRaw.first.toString() : 'School') : (gRaw?.toString() ?? 'School');
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),

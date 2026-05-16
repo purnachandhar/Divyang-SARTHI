@@ -290,20 +290,16 @@ class CareGiverMeetingView extends GetView<InstituteController> {
   }
 
   Widget _buildTermStatesFooter() {
-    final data = controller.careGiverMeetingData.value;
-    var meetingStatus = data?['meetingstatus'] ?? data?['status'];
-    
-    if (meetingStatus == null) {
-      final List? students = data?['students'];
-      if (students != null && students.isNotEmpty) {
-        meetingStatus = students[0]['meetingstatus'];
-      }
-    }
+    final students = controller.filteredCareGiverStudents;
+    if (students.isEmpty) return const SizedBox.shrink();
+
+    // Take meeting status from the first student in the filtered list
+    final meetingStatus = students[0]['meetingstatus'];
 
     String formatState(dynamic termData) {
-      if (termData == null) return "Pending";
+      if (termData == null) return "Draft";
       dynamic stateValue = (termData is Map) ? termData['state'] : termData;
-      if (stateValue == null) return "Pending";
+      if (stateValue == null) return "Draft";
       
       String val = stateValue.toString().toLowerCase();
       if (val == "approve" || val == "approved" || val == "submitted") return "Approved";
@@ -314,10 +310,15 @@ class CareGiverMeetingView extends GetView<InstituteController> {
     final term1State = formatState(meetingStatus?['term1']);
     final term2State = formatState(meetingStatus?['term2']);
 
-    // Enable buttons only if the state is "Approved"
-    bool entryEnabled = entryState == "Approved";
-    bool term1Enabled = term1State == "Approved";
-    bool term2Enabled = term2State == "Approved";
+
+    print("Entry State: $entryState");
+    print("Term1 State: $term1State");
+    print("Term2 State: $term2State");
+
+    // Enable buttons if the state is "Approved" or "Rework"
+    bool entryEnabled = entryState == "Approved" || entryState == "Rework";
+    bool term1Enabled = term1State == "Approved" || term1State == "Rework";
+    bool term2Enabled = term2State == "Approved" || term2State == "Rework";
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -364,16 +365,28 @@ class CareGiverMeetingView extends GetView<InstituteController> {
   
 
   Widget _buildFooterColumn(String status, bool isEnabled, String termKey) {
+    Color statusColor = Colors.grey;
+    if (status == "Approved") statusColor = Colors.green;
+    else if (status == "Rework") statusColor = Colors.red;
+    else if (status == "Pending") statusColor = Colors.orange;
+
     return Column(
       children: [
-        
+        Text(
+          status,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: statusColor,
+          ),
+        ),
         const SizedBox(height: 12),
         _buildActionButton("Rework", Colors.red, isEnabled, () {
-          Get.snackbar("Action", "Rework requested for $termKey", snackPosition: SnackPosition.BOTTOM);
+          _showReworkDialog(termKey);
         }),
         const SizedBox(height: 8),
         _buildActionButton("Approve", Colors.green, isEnabled, () {
-          Get.snackbar("Action", "Approved $termKey", snackPosition: SnackPosition.BOTTOM);
+          controller.submitCareGiverAction(term: termKey, action: "approve");
         }),
       ],
     );
@@ -476,42 +489,126 @@ class CareGiverMeetingView extends GetView<InstituteController> {
      
     }
 
-    String stateText = "";
-    if (state != null) {
-      if (state == "approve" || state == "approved") {
-        stateText = "Approved";
-        color = Colors.green;
-      } else if (state == "pending") {
-        stateText = "Pending";
-        color = Colors.orange;
-      } else {
-        stateText = state.toString().capitalizeFirst ?? state.toString();
-        color = Colors.blue;
-      }
-    }
+    
+    return Text(
+      statusText,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 10,
+        color: Colors.black,
+        fontWeight: statusText == "-" ? FontWeight.normal : FontWeight.w500,
+      ),
+    );
+  }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          statusText,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.black,
-            fontWeight: statusText == "-" ? FontWeight.normal : FontWeight.w500,
+  void _showReworkDialog(String termKey) {
+    final TextEditingController commentController = TextEditingController();
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Rework - Comment',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Comment',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: commentController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Enter comment...',
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Get.back(),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final comment = commentController.text.trim();
+                        if (comment.isEmpty) {
+                          Get.snackbar('Error', 'Please enter comment', 
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: Colors.red.withOpacity(0.1),
+                            colorText: Colors.red);
+                          return;
+                        }
+                        controller.submitCareGiverAction(
+                          term: termKey, 
+                          action: "rework", 
+                          comment: comment
+                        );
+                        Get.back();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Submit',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        Text(
-          stateText,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: statusText == "-" ? FontWeight.normal : FontWeight.w500,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
