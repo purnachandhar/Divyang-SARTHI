@@ -3,12 +3,14 @@ class Address {
   final String localAddress;
   final String district;
   final String state;
+  final String country;
 
   Address({
     required this.pinCode,
     required this.localAddress,
     required this.district,
     required this.state,
+    this.country = 'India',
   });
 
   Map<String, dynamic> toJson() {
@@ -17,6 +19,7 @@ class Address {
       "localAddress": localAddress,
       "district": district,
       "state": state,
+      "country": country,
     };
   }
 }

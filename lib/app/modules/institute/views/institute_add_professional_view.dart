@@ -21,10 +21,6 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
     final designation = RxnString();
     final qualification = RxnString();
     final agreeToTerms = false.obs;
-    final localAddressController = TextEditingController();
-    final pinCodeController = TextEditingController();
-    final districtController = TextEditingController();
-    final stateController = TextEditingController();
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -158,42 +154,7 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                       },
                     ),
                     const SizedBox(height: 24),
-                    _buildSectionTitle('Address'),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      label: 'Local Address*',
-                      hint: 'Enter local address',
-                      controller: localAddressController,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Local address is required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      label: 'Pin Code*',
-                      hint: 'Enter pin code',
-                      controller: pinCodeController,
-                      keyboardType: TextInputType.number,
-                      maxLength: 6,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Pin code is required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      label: 'District*',
-                      hint: 'Enter district',
-                      controller: districtController,
-                      validator: (value) =>
-                          value!.isEmpty ? 'District is required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      label: 'State*',
-                      hint: 'Enter state',
-                      controller: stateController,
-                      validator: (value) =>
-                          value!.isEmpty ? 'State is required' : null,
-                    ),
-                    const SizedBox(height: 24),
+
                     _buildSectionTitle('Security'),
                     const SizedBox(height: 16),
                     _buildTextField(
@@ -252,12 +213,7 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                                       password: passwordController.text,
                                       designation: designation.value ?? '',
                                       qualification: qualification.value ?? '',
-                                      // crrNumber: crrController.text.trim(),
                                       agreeToTerms: agreeToTerms.value,
-                                      localAddress: localAddressController.text.trim(),
-                                      pinCode: pinCodeController.text.trim(),
-                                      district: districtController.text.trim(),
-                                      state: stateController.text.trim(),
                                      );
                                   },
                             style: ElevatedButton.styleFrom(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../controllers/login_controller.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_gradients.dart';
@@ -27,7 +28,7 @@ class LoginView extends GetView<LoginController> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Please useyour credentials to login',
+                        'Please use your credentials to login',
                         style:
                             AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
                           color: AppTheme.textSecondary,
@@ -156,29 +157,90 @@ class LoginView extends GetView<LoginController> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.borderColor),
-                ),
-                child: const Center(
-                  child: Text(
-                    'S P 9 T B 8',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                      fontStyle: FontStyle.italic,
+              child: Obx(() {
+                if (controller.isFetchingCaptcha.value) {
+                  return Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderColor),
                     ),
+                    child: const Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                }
+                
+                if (controller.captchaSvg.value.isEmpty) {
+                  return Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.5)),
+                    ),
+                    child: const Center(child: Text('Failed', style: TextStyle(color: Colors.red))),
+                  );
+                }
+
+                return Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.borderColor),
                   ),
-                ),
-              ),
+                  clipBehavior: Clip.hardEdge,
+                  child: SvgPicture.string(
+                    controller.captchaSvg.value,
+                    fit: BoxFit.contain,
+                  ),
+                );
+              }),
             ),
             IconButton(
               icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
-              onPressed: () {},
+              onPressed: controller.refreshCaptcha,
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Obx(() => TextButton(
+              onPressed: controller.toggleCaptchaType,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(50, 30),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                controller.isMathCaptcha.value ? 'Visual Captcha' : 'Math Captcha',
+                style: const TextStyle(fontSize: 12, decoration: TextDecoration.underline),
+              ),
+            )),
+            Obx(() {
+              if (controller.captchaVerified.value) {
+                return const Text(
+                  '✓ Captcha verified successfully',
+                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
+                );
+              }
+              return ElevatedButton(
+                onPressed: controller.verifyCaptcha,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  minimumSize: const Size(60, 30),
+                ),
+                child: const Text('Verify'),
+              );
+            }),
           ],
         ),
         const SizedBox(height: 12),
@@ -205,9 +267,11 @@ class LoginView extends GetView<LoginController> {
                 ),
               ],
             ),
-            child: Obx(() => ElevatedButton(
+            child: Obx(() {
+                  final isLoginEnabled = !controller.isLoading.value && controller.captchaVerified.value;
+                  return ElevatedButton(
                   onPressed:
-                      controller.isLoading.value ? null : controller.onLogin,
+                      isLoginEnabled ? controller.onLogin : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     foregroundColor: Colors.white,
@@ -228,7 +292,8 @@ class LoginView extends GetView<LoginController> {
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                )),
+                );
+            }),
           ),
         ),
         const SizedBox(height: 16),

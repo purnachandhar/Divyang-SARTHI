@@ -5,6 +5,8 @@ import 'educator_dashboard_view.dart';
 import 'educator_student_view.dart';
 import 'educator_attendance_view.dart';
 import 'educator_mood_board_view.dart';
+import 'disha_curriculum_view.dart';
+import 'learning_resources_view.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_gradients.dart';
 import '../../../utils/responsive_layout.dart';
@@ -50,7 +52,7 @@ class EducatorHomeView extends GetView<EducatorController> {
           const EducatorStudentView(),
           isNiepid ? _buildModules() : const EducatorAttendanceView(),
           isNiepid ? _buildDishaCurriculum() : const EducatorMoodBoardView(),
-          _buildMore(),
+          isNiepid ? const LearningResourcesView() : _buildMore(),
         ],
       );
     });
@@ -101,23 +103,29 @@ class EducatorHomeView extends GetView<EducatorController> {
                 activeIcon: Icon(Icons.how_to_reg),
                 label: 'Attendance',
               ),
-            if (isNiepid)
+            if (isNiepid) ...[
               const BottomNavigationBarItem(
                 icon: Icon(Icons.book_outlined),
                 activeIcon: Icon(Icons.book),
                 label: 'Disha Curriculum',
-              )
-            else
+              ),
+              // const BottomNavigationBarItem(
+              //   icon: Icon(Icons.library_books_outlined),
+              //   activeIcon: Icon(Icons.library_books),
+              //   label: 'Learning Resources',
+              // ),
+            ] else ...[
               const BottomNavigationBarItem(
                 icon: Icon(Icons.mood_outlined),
                 activeIcon: Icon(Icons.mood),
                 label: 'Mood Board',
               ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.menu_outlined),
-              activeIcon: Icon(Icons.menu),
-              label: 'More',
-            ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.menu_outlined),
+                activeIcon: Icon(Icons.menu),
+                label: 'More',
+              ),
+            ],
           ],
         ),
       );
@@ -150,11 +158,13 @@ class EducatorHomeView extends GetView<EducatorController> {
               _buildSidebarItem(2, Icons.view_module_outlined, Icons.view_module, 'Modules')
             else
               _buildSidebarItem(2, Icons.how_to_reg_outlined, Icons.how_to_reg, 'Attendance'),
-            if (isNiepid)
-              _buildSidebarItem(3, Icons.book_outlined, Icons.book, 'Disha Curriculum')
-            else
+            if (isNiepid) ...[
+              _buildSidebarItem(3, Icons.book_outlined, Icons.book, 'Disha Curriculum'),
+              // _buildSidebarItem(4, Icons.library_books_outlined, Icons.library_books, 'Learning Resources'),
+            ] else ...[
               _buildSidebarItem(3, Icons.mood_outlined, Icons.mood, 'Mood Board'),
-            _buildSidebarItem(4, Icons.menu_outlined, Icons.menu, 'All Services'),
+              _buildSidebarItem(4, Icons.menu_outlined, Icons.menu, 'All Services'),
+            ],
             const Spacer(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -243,12 +253,12 @@ class EducatorHomeView extends GetView<EducatorController> {
                   icon: Icons.summarize_outlined,
                   title: 'Student Reports',
                   subtitle: 'View and generate reports',
-                  onTap: () {}),
+                  onTap: () => controller.goToStudentReports()),
               _buildMoreTile(
                   icon: Icons.library_books_outlined,
                   title: 'Learning Resources',
                   subtitle: 'Access learning materials',
-                  onTap: () {}),
+                  onTap: () => Get.to(() => const LearningResourcesView())),
             ],
           ),
         ),
@@ -257,49 +267,7 @@ class EducatorHomeView extends GetView<EducatorController> {
   }
 
   Widget _buildDishaCurriculum() {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(top: 60, bottom: 20, left: 20, right: 20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primaryColor, AppTheme.primaryColor],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Disha Curriculum',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold)),
-                SizedBox(height: 8),
-                Text('Access educational curriculum materials',
-                    style: TextStyle(color: Colors.white70, fontSize: 14)),
-              ],
-            ),
-          ),
-          const Expanded(
-            child: Center(
-              child: Text(
-                'Disha Curriculum Content Coming Soon',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const DishaCurriculumView();
   }
 
   Widget _buildMore() {

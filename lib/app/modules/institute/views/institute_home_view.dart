@@ -7,6 +7,7 @@ import 'institute_transfer_view.dart';
 import 'institute_modules_view.dart';
 import 'institute_professional_view.dart';
 import 'institute_student_view.dart';
+import '../../educator/views/disha_curriculum_view.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_gradients.dart';
 import '../../../utils/responsive_layout.dart';
@@ -100,7 +101,7 @@ class InstituteHomeView extends GetView<InstituteController> {
               const BottomNavigationBarItem(
                 icon: Icon(Icons.school_outlined),
                 activeIcon: Icon(Icons.school),
-                label: 'Student',
+                label: 'PwID',
               ),
               const BottomNavigationBarItem(
                 icon: Icon(Icons.menu_outlined),
@@ -139,7 +140,7 @@ class InstituteHomeView extends GetView<InstituteController> {
                       Icons.swap_horiz, 'Transfers'),
               _buildSidebarItem(2, Icons.psychology_outlined, Icons.psychology,
                   'Professionals'),
-              _buildSidebarItem(3, Icons.school_outlined, Icons.school, 'Students'),
+              _buildSidebarItem(3, Icons.school_outlined, Icons.school, 'PwID'),
               _buildSidebarItem(4, Icons.menu_outlined, Icons.menu, 'All Services'),
               const Spacer(),
               ListTile(
@@ -207,49 +208,78 @@ class InstituteHomeView extends GetView<InstituteController> {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            children: [
-              _buildMoreTile(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Verification Center',
-                  subtitle: 'Verify details',
-                  onTap: () => controller.goToVerificationCenter()),
-              _buildMoreTile(
-                  icon: Icons.calendar_month_outlined,
-                  title: 'Academic Year',
-                  subtitle: 'Manage academic years',
-                  onTap: () => controller.goToAcademicYear()),
-              _buildMoreTile(
-                  icon: Icons.chat_outlined,
-                  title: 'Chat',
-                  subtitle: 'Messages',
-                  onTap: () => controller.goToChatList()),
-              _buildMoreTile(
-                  icon: Icons.menu_book_outlined,
-                  title: 'Learning Content',
-                  subtitle: 'Materials',
-                  onTap: () {}),
-              _buildMoreTile(
-                  icon: Icons.videogame_asset_outlined,
-                  title: 'Gamified Content',
-                  subtitle: 'Learning games',
-                  onTap: () {}),
-              _buildMoreTile(
-                  icon: Icons.calendar_today_outlined,
-                  title: 'Academic Year',
-                  subtitle: 'Schedules',
-                  onTap: () {}),
-              const Divider(height: 32),
-              _buildMoreTile(
-                  icon: Icons.logout,
-                  title: 'Logout',
-                  subtitle: 'Sign out',
-                  iconColor: Colors.red,
-                  textColor: Colors.red,
-                  onTap: () => _showLogoutDialog()),
-            ],
-          ),
+          child: Obx(() {
+            final isNipied = controller.isNipiedDisha.value;
+            if (isNipied) {
+              return ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                children: [
+                  _buildMoreTile(
+                      icon: Icons.calendar_month_outlined,
+                      title: 'Academic Year',
+                      subtitle: 'Manage academic years',
+                      onTap: () => controller.goToAcademicYear()),
+                  _buildMoreTile(
+                      icon: Icons.book_outlined,
+                      title: 'Disha Curriculum',
+                      subtitle: 'Access educational materials',
+                      onTap: () => Get.to(() => const DishaCurriculumView(showBackButton: true))),
+                  const Divider(height: 32),
+                  _buildMoreTile(
+                      icon: Icons.logout,
+                      title: 'Logout',
+                      subtitle: 'Sign out',
+                      iconColor: Colors.red,
+                      textColor: Colors.red,
+                      onTap: () => _showLogoutDialog()),
+                ],
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              children: [
+                _buildMoreTile(
+                    icon: Icons.verified_user_outlined,
+                    title: 'Verification Center',
+                    subtitle: 'Verify details',
+                    onTap: () => controller.goToVerificationCenter()),
+                _buildMoreTile(
+                    icon: Icons.calendar_month_outlined,
+                    title: 'Academic Year',
+                    subtitle: 'Manage academic years',
+                    onTap: () => controller.goToAcademicYear()),
+                _buildMoreTile(
+                    icon: Icons.chat_outlined,
+                    title: 'Chat',
+                    subtitle: 'Messages',
+                    onTap: () => controller.goToChatList()),
+                _buildMoreTile(
+                    icon: Icons.menu_book_outlined,
+                    title: 'Learning Content',
+                    subtitle: 'Materials',
+                    onTap: () {}),
+                _buildMoreTile(
+                    icon: Icons.videogame_asset_outlined,
+                    title: 'Gamified Content',
+                    subtitle: 'Learning games',
+                    onTap: () {}),
+                _buildMoreTile(
+                    icon: Icons.calendar_today_outlined,
+                    title: 'Academic Year',
+                    subtitle: 'Schedules',
+                    onTap: () {}),
+                const Divider(height: 32),
+                _buildMoreTile(
+                    icon: Icons.logout,
+                    title: 'Logout',
+                    subtitle: 'Sign out',
+                    iconColor: Colors.red,
+                    textColor: Colors.red,
+                    onTap: () => _showLogoutDialog()),
+              ],
+            );
+          }),
         ),
       ],
     );

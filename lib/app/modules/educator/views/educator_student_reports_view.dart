@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/institute_controller.dart';
+import '../controllers/educator_controller.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_gradients.dart';
 
-class StudentReportsView extends GetView<InstituteController> {
-  const StudentReportsView({super.key});
+class EducatorStudentReportsView extends GetView<EducatorController> {
+  const EducatorStudentReportsView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +43,7 @@ class StudentReportsView extends GetView<InstituteController> {
 
   Widget _buildAcademicYearDropdown() {
     return Obx(() {
-      final years = controller.academicYears;
+      final years = controller.iepAcademicYears;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -89,7 +89,7 @@ class StudentReportsView extends GetView<InstituteController> {
   Widget _buildStudentList() {
     return Obx(() {
       final isYearSelected = controller.selectedStudentReportYearId.value.isNotEmpty;
-      final students = controller.filteredNiepidStudents;
+      final students = controller.niepidStudentAssessments;
       if (students.isEmpty) {
         return const Center(
           child: Padding(

@@ -124,6 +124,15 @@ class ApiProvider extends GetConnect {
     );
   }
 
+  Future<Response> updateEducator(String id, Map<String, dynamic> data) async {
+    final headers = await _buildAuthHeaders();
+    return put(
+      '/users/private/educator/update/$id',
+      data,
+      headers: headers,
+    );
+  }
+
   Future<Response> getIepList(String orgId) async {
     final headers = await _buildAuthHeaders();
     return get(
@@ -148,6 +157,30 @@ class ApiProvider extends GetConnect {
     );
   }
 
+  Future<Response> getStudentLearningResources(String studentId) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return get(
+      '/niepid-disha-assessment/user/student-learning-resources/$studentId',
+      headers: headers,
+    );
+  }
+
+  Future<Response> getVideosByLanguage() async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return get(
+      '/portal/videos-list/by-language',
+      headers: headers,
+    );
+  }
+
   Future<Response> getCareGiverMeetingData() async {
     final headers = await _buildAuthHeaders();
     return get(
@@ -156,14 +189,17 @@ class ApiProvider extends GetConnect {
     );
   }
 
-  Future<Response> getGoalMonitoringQuestions(String orgId, String studentId, String yearId) async {
+  Future<Response> getGoalMonitoringQuestions(
+      String orgId, String studentId, String yearId) async {
     final headers = await _buildAuthHeaders();
     final String token = headers['x-access-token'] ?? '';
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final url = '/niepid-disha-assessment/user/questions/$orgId/$studentId/$yearId/entry';
-    print('DEBUG: Calling Goal Monitoring Questions API: ${httpClient.baseUrl}$url');
+    final url =
+        '/niepid-disha-assessment/user/questions/$orgId/$studentId/$yearId/entry';
+    print(
+        'DEBUG: Calling Goal Monitoring Questions API: ${httpClient.baseUrl}$url');
     return get(
       url,
       headers: headers,
@@ -171,32 +207,38 @@ class ApiProvider extends GetConnect {
   }
 
   /// Fetch questions for a specific term: entry, term1, term2
-  Future<Response> getTermQuestions(String orgId, String studentId, String yearId, String term) async {
+  Future<Response> getTermQuestions(
+      String orgId, String studentId, String yearId, String term) async {
     final headers = await _buildAuthHeaders();
     final String token = headers['x-access-token'] ?? '';
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final url = '/niepid-disha-assessment/user/questions/$orgId/$studentId/$yearId/$term';
-    print('DEBUG: Calling Term Questions API ($term): ${httpClient.baseUrl}$url');
+    final url =
+        '/niepid-disha-assessment/user/questions/$orgId/$studentId/$yearId/$term';
+    print(
+        'DEBUG: Calling Term Questions API ($term): ${httpClient.baseUrl}$url');
     return get(
       url,
       headers: headers,
     );
   }
 
-  Future<Response> getGoalMonitoringData(String studentId, String yearId) async {
+  Future<Response> getGoalMonitoringData(
+      String studentId, String yearId) async {
     return getGoalMonitoringTermData(studentId, yearId, 'entry');
   }
 
-  Future<Response> getGoalMonitoringTermData(String studentId, String yearId, String term) async {
+  Future<Response> getGoalMonitoringTermData(
+      String studentId, String yearId, String term) async {
     final headers = await _buildAuthHeaders();
     final String token = headers['x-access-token'] ?? '';
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
     final url = '/niepid-disha-assessment/user/$studentId/$yearId/$term';
-    print('DEBUG: Calling Goal Monitoring Data API ($term): ${httpClient.baseUrl}$url');
+    print(
+        'DEBUG: Calling Goal Monitoring Data API ($term): ${httpClient.baseUrl}$url');
     return get(
       url,
       headers: headers,
@@ -216,20 +258,20 @@ class ApiProvider extends GetConnect {
     headers.remove('Content-Type');
 
     final formData = FormData({});
-    
+
     data.forEach((key, value) {
       if (value is List) {
         for (var i = 0; i < value.length; i++) {
           formData.fields.add(MapEntry('$key[$i]', value[i].toString()));
         }
-      } else if ((key == 'studentDP' || key == 'idCard') && 
-                 value != null && 
-                 value.toString().isNotEmpty && 
-                 File(value.toString()).existsSync()) {
+      } else if ((key == 'studentDP' || key == 'idCard') &&
+          value != null &&
+          value.toString().isNotEmpty &&
+          File(value.toString()).existsSync()) {
         formData.files.add(MapEntry(
-          key, 
-          MultipartFile(File(value.toString()), filename: value.toString().split('/').last)
-        ));
+            key,
+            MultipartFile(File(value.toString()),
+                filename: value.toString().split('/').last)));
       } else {
         formData.fields.add(MapEntry(key, value.toString()));
       }
@@ -247,8 +289,7 @@ class ApiProvider extends GetConnect {
   }
 
   Future<Response> getPincodeDetails(String pincode) async {
-    // Use a fresh GetConnect instance for external APIs to avoid baseUrl issues
-    return GetConnect().get('https://api.postalpincode.in/pincode/$pincode');
+    return get('/pincode/$pincode');
   }
 
   Future<Response> verifyStudentGoals(String studentId) async {
@@ -257,7 +298,8 @@ class ApiProvider extends GetConnect {
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final url = '/niepid-disha-assessment/institute/verify-student-goals/$studentId';
+    final url =
+        '/niepid-disha-assessment/institute/verify-student-goals/$studentId';
     print('DEBUG: Calling Verify Student Goals API: ${httpClient.baseUrl}$url');
     return get(
       url,
@@ -265,7 +307,8 @@ class ApiProvider extends GetConnect {
     );
   }
 
-  Future<Response> getTermStudentGoals(String studentId, String yearId, String term) async {
+  Future<Response> getTermStudentGoals(
+      String studentId, String yearId, String term) async {
     final headers = await _buildAuthHeaders();
     final String token = headers['x-access-token'] ?? '';
     if (token.isNotEmpty) {
@@ -275,13 +318,15 @@ class ApiProvider extends GetConnect {
     return get(url, headers: headers);
   }
 
-  Future<Response> revokeSubmission(String studentId, String term, String comment) async {
+  Future<Response> revokeSubmission(
+      String studentId, String term, String comment) async {
     final headers = await _buildAuthHeaders();
     final String token = headers['x-access-token'] ?? '';
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final url = '/niepid-disha-assessment/institute/final-submission-revoke/$studentId/$term';
+    final url =
+        '/niepid-disha-assessment/institute/final-submission-revoke/$studentId/$term';
     return put(url, {'comment': comment}, headers: headers);
   }
 
@@ -302,7 +347,8 @@ class ApiProvider extends GetConnect {
       'studentIds': studentIds,
       if (comment != null) 'comment': comment,
     };
-    return put('/niepid-disha-assessment/institute/care-giver/update', body, headers: headers);
+    return put('/niepid-disha-assessment/institute/care-giver/update', body,
+        headers: headers);
   }
 
   Future<Response> approveSubmission(String studentId, String term) async {
@@ -311,7 +357,95 @@ class ApiProvider extends GetConnect {
     if (token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final url = '/niepid-disha-assessment/institute/final-submission/$studentId/$term';
+    final url =
+        '/niepid-disha-assessment/institute/final-submission/$studentId/$term';
     return put(url, {}, headers: headers);
+  }
+
+  Future<Response> addIep(Map<String, dynamic> body) async {
+    final headers = await _buildAuthHeaders();
+    return post(
+      '/admin/school/addiep',
+      body,
+      headers: headers,
+    );
+  }
+
+  Future<Response> updateIep(String id, Map<String, dynamic> body) async {
+    final headers = await _buildAuthHeaders();
+    return put(
+      '/admin/school/updateiep/$id',
+      body,
+      headers: headers,
+    );
+  }
+
+  Future<Response> saveCareGiverMeeting(Map<String, dynamic> body) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return put(
+      '/niepid-disha-assessment/institute/care-giver/save',
+      body,
+      headers: headers,
+    );
+  }
+
+  Future<Response> submitCareGiverMeeting(Map<String, dynamic> body) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return put(
+      '/niepid-disha-assessment/institute/care-giver/submit',
+      body,
+      headers: headers,
+    );
+  }
+
+  Future<Response> getStudentOverview(
+      String studentId, String yearId, String term) async {
+    final headers = await _buildAuthHeaders();
+    final String token = headers['x-access-token'] ?? '';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url =
+        '/niepid-disha-assessment/user/student-overview/$studentId?year=$yearId&term=$term';
+    return get(url, headers: headers);
+  }
+
+  Future<Response> uploadProfileImage(File file) async {
+    final headers = await _buildAuthHeaders();
+    headers.remove('Content-Type');
+    final bytes = await file.readAsBytes();
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    final formData = FormData({
+      'file':
+          MultipartFile(bytes, filename: fileName, contentType: 'image/jpeg')
+    });
+    return post('/api/upload-profile-image', formData, headers: headers);
+  }
+
+  Future<Response> uploadFilePortal(File file) async {
+    final headers = await _buildAuthHeaders();
+    headers.remove('Content-Type');
+    final bytes = await file.readAsBytes();
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    final formData = FormData({
+      'file':
+          MultipartFile(bytes, filename: fileName, contentType: 'image/jpeg')
+    });
+    return post('/portal/file/upload', formData, headers: headers);
+  }
+
+  Future<Response> updateStudent(
+      String studentId, Map<String, dynamic> data) async {
+    final headers = await _buildAuthHeaders();
+    return patch('/student/users/updatestudentid/$studentId', data,
+        headers: headers);
   }
 }

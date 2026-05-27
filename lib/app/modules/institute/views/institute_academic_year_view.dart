@@ -4,6 +4,7 @@ import '../../../../theme/app_theme.dart';
 import '../controllers/institute_controller.dart';
 import 'package:animate_do/animate_do.dart';
 import '../../../../theme/app_gradients.dart';
+import 'institute_add_academic_year_view.dart';
 
 class InstituteAcademicYearView extends GetView<InstituteController> {
   const InstituteAcademicYearView({super.key});
@@ -12,6 +13,12 @@ class InstituteAcademicYearView extends GetView<InstituteController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Get.to(() => const InstituteAddAcademicYearView()),
+        backgroundColor: AppTheme.primaryColor,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Add Academic Year', style: TextStyle(color: Colors.white)),
+      ),
       body: Column(
         children: [
           _buildHeader(),
@@ -250,6 +257,153 @@ class InstituteAcademicYearView extends GetView<InstituteController> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showAddAcademicYearDialog(BuildContext context) {
+    String? acStartDate;
+    String? acEndDate;
+    String? t1StartDate;
+    String? t1EndDate;
+
+    Future<void> selectDate(BuildContext context, void Function(String) onDateSelected) async {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppTheme.primaryColor,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+      if (picked != null) {
+        final dateStr = '${picked.day.toString().padLeft(2, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.year}';
+        onDateSelected(dateStr);
+      }
+    }
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Add Academic Year',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    const Text('Academic Year', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 12),
+                    _buildDateField(
+                      label: 'Academic year start date*',
+                      value: acStartDate,
+                      onTap: () => selectDate(context, (date) => setState(() => acStartDate = date)),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDateField(
+                      label: 'Academic year end date*',
+                      value: acEndDate,
+                      onTap: () => selectDate(context, (date) => setState(() => acEndDate = date)),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    const Text('Term 1 :', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 12),
+                    _buildDateField(
+                      label: 'Term start date*',
+                      value: t1StartDate,
+                      onTap: () => selectDate(context, (date) => setState(() => t1StartDate = date)),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDateField(
+                      label: 'Term end date*',
+                      value: t1EndDate,
+                      onTap: () => selectDate(context, (date) => setState(() => t1EndDate = date)),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Get.back(),
+                          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            // TODO: Add logic to save the academic year if needed
+                            Get.back();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Add', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateField({required String label, required String? value, required VoidCallback onTap}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  value ?? 'dd-mm-yyyy',
+                  style: TextStyle(
+                    color: value == null ? Colors.grey.shade500 : Colors.black87,
+                    fontSize: 14,
+                  ),
+                ),
+                Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

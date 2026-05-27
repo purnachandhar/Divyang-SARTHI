@@ -156,11 +156,95 @@ class IepQuestionnaireView extends GetView<InstituteController> {
           }),
           children: [
             const Divider(height: 1),
-            ...questions.map((q) => _buildQuestionItem(q)).toList(),
+            if (questions.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildQuestionCardsWithSubdomains(questions),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('No questions available.',
+                    style: TextStyle(color: AppTheme.textSecondary)),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildQuestionCardsWithSubdomains(List<dynamic> questions) {
+    final widgets = <Widget>[];
+
+    // Extract numerical value for sorting
+    int extractNumber(dynamic q) {
+      if (q is! Map) return 0;
+      final str = q['priority']?.toString() ?? q['code']?.toString() ?? q['questionCode']?.toString() ?? '';
+      final match = RegExp(r'\d+').firstMatch(str);
+      return match != null ? int.tryParse(match.group(0)!) ?? 0 : 0;
+    }
+
+    // Sort questions numerically
+    final sortedQuestions = questions.toList();
+    sortedQuestions.sort((a, b) => extractNumber(a).compareTo(extractNumber(b)));
+
+    // Group questions by subdomain
+    final Map<String, List<dynamic>> groupedQuestions = {};
+    for (var q in sortedQuestions) {
+      final qMap = q as Map<String, dynamic>;
+      final subdomain = qMap['subdomain']?.toString().trim() ?? '';
+      final key = subdomain.isEmpty ? 'Other' : subdomain;
+      if (!groupedQuestions.containsKey(key)) {
+        groupedQuestions[key] = [];
+      }
+      groupedQuestions[key]!.add(qMap);
+    }
+
+    // Get sorted keys in reverse alphabetical order
+    final sortedSubdomains = groupedQuestions.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    // Build widgets grouped by subdomain
+    for (var subdomain in sortedSubdomains) {
+      final subQuestions = groupedQuestions[subdomain]!;
+      
+      if (subdomain != 'Other') {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    subdomain,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      for (var q in subQuestions) {
+        widgets.add(_buildQuestionItem(q as Map<String, dynamic>));
+      }
+    }
+
+    return widgets;
   }
 
   Widget _buildQuestionItem(Map<String, dynamic> question) {
@@ -317,13 +401,6 @@ class IepQuestionnaireView extends GetView<InstituteController> {
               }).toList(),
             );
           }),
-          if (question['subdomain'] != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Subdomain: ${question['subdomain']}',
-              style: TextStyle(fontSize: 11, color: Colors.black, fontStyle: FontStyle.italic),
-            ),
-          ],
         ],
       ),
     );

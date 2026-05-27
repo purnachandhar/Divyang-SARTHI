@@ -1,21 +1,43 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/models/professional_registration_model.dart';
 import '../views/iep_questionnaire_view.dart';
 
-
 class InstituteController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
   var currentIndex = 0.obs;
-  
+
   var profileData = Rxn<Map<String, dynamic>>();
   var isProfileLoading = false.obs;
-  
+
   var educators = <Map<String, dynamic>>[].obs;
   var isEducatorsLoading = false.obs;
+  var educatorSearchQuery = ''.obs;
+
+  List<Map<String, dynamic>> get filteredEducators {
+    if (educatorSearchQuery.value.trim().isEmpty) return educators;
+    final q = educatorSearchQuery.value.trim().toLowerCase();
+    return educators.where((e) {
+      final firstName = (e['firstName'] ?? '').toString().toLowerCase();
+      final lastName = (e['lastName'] ?? '').toString().toLowerCase();
+      final fullName = '$firstName $lastName';
+      final roles = e['roles'] is List
+          ? (e['roles'] as List).join(' ').toLowerCase()
+          : (e['roles'] ?? '').toString().toLowerCase();
+      final email = (e['email'] ?? '').toString().toLowerCase();
+      final design = (e['designation'] ?? '').toString().toLowerCase();
+      return fullName.contains(q) ||
+          roles.contains(q) ||
+          email.contains(q) ||
+          design.contains(q);
+    }).toList();
+  }
 
   var students = <Map<String, dynamic>>[].obs;
   var isStudentsLoading = false.obs;
@@ -32,7 +54,7 @@ class InstituteController extends GetxController {
   var isNipiedDisha = false.obs;
   var niepidDashboardData = Rxn<Map<String, dynamic>>();
   var isNiepidDashboardLoading = false.obs;
-  
+
   var niepidStudentAssessments = Rxn<Map<String, dynamic>>();
   var isNiepidStudentAssessmentsLoading = false.obs;
   var filteredNiepidStudents = <Map<String, dynamic>>[].obs;
@@ -47,14 +69,14 @@ class InstituteController extends GetxController {
   var selectedStudentData = Rxn<Map<String, dynamic>>();
   var availableIepLevels = ['3-14 Years', '14+ Years'].obs;
   var selectedIepLevel = Rxn<String>();
-  
+
   var niepidQuestions = Rxn<Map<String, dynamic>>();
   var allNiepidDomains = <Map<String, dynamic>>[].obs;
   var filteredNiepidDomains = <Map<String, dynamic>>[].obs;
   var niepidStudentGoals = Rxn<Map<String, dynamic>>();
   var assessmentAnswers = <String, Map<String, dynamic>>{}.obs;
   var isQuestionsLoading = false.obs;
-  
+
   var careGiverMeetingData = Rxn<Map<String, dynamic>>();
   var isCareGiverLoading = false.obs;
   var selectedCareGiverTeacher = Rxn<String>();
@@ -79,7 +101,7 @@ class InstituteController extends GetxController {
     super.onInit();
     fetchCurrentProfile();
     fetchDisabilityTypes();
-    
+
     // Listen for changes to questions or level to re-filter
     ever(niepidQuestions, (_) => _initializeDomains());
     ever(selectedIepLevel, (_) => applyIepLevelFilter());
@@ -91,10 +113,10 @@ class InstituteController extends GetxController {
   }
 
   void _initializeDomains() {
-    if (niepidQuestions.value != null && niepidQuestions.value!['domains'] is List) {
+    if (niepidQuestions.value != null &&
+        niepidQuestions.value!['domains'] is List) {
       allNiepidDomains.assignAll(
-        List<Map<String, dynamic>>.from(niepidQuestions.value!['domains'])
-      );
+          List<Map<String, dynamic>>.from(niepidQuestions.value!['domains']));
       applyIepLevelFilter();
     } else {
       allNiepidDomains.clear();
@@ -106,13 +128,13 @@ class InstituteController extends GetxController {
     try {
       isProfileLoading.value = true;
       final response = await _apiProvider.getCurrentUser();
-      
+
       print('Current User Response Status: ${response.statusCode}');
       print('Current User Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         profileData.value = response.body;
-        
+
         // Check for isNipiedDisha
         isNipiedDisha.value = response.body['isNipiedDisha'] ?? false;
         if (isNipiedDisha.value) {
@@ -139,19 +161,21 @@ class InstituteController extends GetxController {
 
     try {
       isEducatorsLoading.value = true;
-      
+
       // The profile returns 'organisation' as a fully populated Map object
       // e.g., {_id: "68f729a7...", schoolName: "TestSchool", country: "India", ...}
       String? orgId;
       final org = profileData.value!['organisation'];
-      final isApproved=profileData.value!['isApproved'];
-      final isActive=profileData.value!['isActivate'];
-      if (isApproved==false) {
-        Get.snackbar('Error', 'Your organisation is not approved',snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red);
+      final isApproved = profileData.value!['isApproved'];
+      final isActive = profileData.value!['isActivate'];
+      if (isApproved == false) {
+        Get.snackbar('Error', 'Your organisation is not approved',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red);
         logout();
       }
-      if (isActive==false) {
-        Get.snackbar('Error', 'Your organisation is not active',snackPosition: SnackPosition.BOTTOM,backgroundColor: Colors.red);
+      if (isActive == false) {
+        Get.snackbar('Error', 'Your organisation is not active',
+            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red);
         logout();
       }
       print('isApproved: $isApproved');
@@ -168,7 +192,8 @@ class InstituteController extends GetxController {
       }
 
       if (orgId == null || orgId.isEmpty) {
-        print('Error: Organisation ID not found in profile. Organisation data: $org');
+        print(
+            'Error: Organisation ID not found in profile. Organisation data: $org');
         return;
       }
 
@@ -188,7 +213,8 @@ class InstituteController extends GetxController {
         if (response.body is List) {
           fetchedList = List<Map<String, dynamic>>.from(response.body);
         } else if (response.body is Map && response.body['educators'] is List) {
-           fetchedList = List<Map<String, dynamic>>.from(response.body['educators']);
+          fetchedList =
+              List<Map<String, dynamic>>.from(response.body['educators']);
         }
 
         // Filter to only include those with the "Educator" role
@@ -218,7 +244,7 @@ class InstituteController extends GetxController {
       isStudentsLoading.value = true;
       String? orgId;
       final org = profileData.value!['organisation'];
-      
+
       if (org is Map) {
         orgId = (org['id'] ?? org['_id'])?.toString();
       } else if (org is String && org.isNotEmpty) {
@@ -240,9 +266,9 @@ class InstituteController extends GetxController {
         if (response.body is List) {
           fetchedList = List<Map<String, dynamic>>.from(response.body);
         } else if (response.body is Map && response.body['data'] is List) {
-           fetchedList = List<Map<String, dynamic>>.from(response.body['data']);
+          fetchedList = List<Map<String, dynamic>>.from(response.body['data']);
         } else if (response.body is Map && response.body['user'] is List) {
-           fetchedList = List<Map<String, dynamic>>.from(response.body['user']);
+          fetchedList = List<Map<String, dynamic>>.from(response.body['user']);
         } else if (response.body is Map) {
           fetchedList = [response.body];
         }
@@ -265,11 +291,14 @@ class InstituteController extends GetxController {
       print('Disability Types Response Body: ${response.body}');
       if (response.statusCode == 200) {
         if (response.body is List) {
-          disabilityTypesList.assignAll(List<Map<String, dynamic>>.from(response.body));
+          disabilityTypesList
+              .assignAll(List<Map<String, dynamic>>.from(response.body));
         } else if (response.body is Map && response.body['data'] is List) {
-          disabilityTypesList.assignAll(List<Map<String, dynamic>>.from(response.body['data']));
+          disabilityTypesList.assignAll(
+              List<Map<String, dynamic>>.from(response.body['data']));
         } else if (response.body is Map && response.body['items'] is List) {
-          disabilityTypesList.assignAll(List<Map<String, dynamic>>.from(response.body['items']));
+          disabilityTypesList.assignAll(
+              List<Map<String, dynamic>>.from(response.body['items']));
         }
       }
     } catch (e) {
@@ -285,22 +314,30 @@ class InstituteController extends GetxController {
     try {
       isPincodeLoading.value = true;
       final response = await _apiProvider.getPincodeDetails(pincode);
-      
+
       print('Pincode Response Status: ${response.statusCode}');
       print('Pincode Response Body: ${response.body}');
-      
-      if (response.statusCode == 200 && response.body is List && response.body.isNotEmpty) {
-        final data = response.body[0];
-        if (data['Status'] == 'Success') {
+
+      if (response.statusCode == 200) {
+        // New backend returns a Map; legacy postalpincode.in returned a List.
+        dynamic data;
+        if (response.body is Map) {
+          data = response.body;
+        } else if (response.body is List && response.body.isNotEmpty) {
+          data = response.body[0];
+        }
+
+        if (data != null && data['Status'] == 'Success') {
           final List postOffices = data['PostOffice'] ?? [];
           if (postOffices.isNotEmpty) {
             final state = postOffices[0]['State'];
             final districts = postOffices
-                .map((po) => po['District']?.toString() ?? po['Block']?.toString() ?? '')
+                .map((po) =>
+                    po['District']?.toString() ?? po['Block']?.toString() ?? '')
                 .where((d) => d.isNotEmpty)
                 .toSet()
                 .toList();
-            
+
             availableDistricts.assignAll(districts);
             return {
               'state': state,
@@ -321,7 +358,7 @@ class InstituteController extends GetxController {
     try {
       isNiepidDashboardLoading.value = true;
       final response = await _apiProvider.getNiepidDishaDashboard();
-      
+
       print('NIEPID Dashboard Response Status: ${response.statusCode}');
       print('NIEPID Dashboard Response Body: ${response.body}');
 
@@ -340,7 +377,7 @@ class InstituteController extends GetxController {
           } else {
             formattedYear = yearData.toString();
           }
-          
+
           if (formattedYear.isNotEmpty) {
             availableNiepidYears.assignAll([formattedYear]);
             selectedNiepidYear.value = formattedYear;
@@ -358,8 +395,9 @@ class InstituteController extends GetxController {
     try {
       isNiepidStudentAssessmentsLoading.value = true;
       final response = await _apiProvider.getNiepidStudentAssessments();
-      
-      print('NIEPID Student Assessments Response Status: ${response.statusCode}');
+
+      print(
+          'NIEPID Student Assessments Response Status: ${response.statusCode}');
       print('NIEPID Student Assessments Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
@@ -373,15 +411,16 @@ class InstituteController extends GetxController {
               .toSet()
               .toList();
           availableNiepidTeachers.assignAll(teachers);
-          
+
           final students = data
               .map((e) => e['studentName']?.toString())
               .whereType<String>()
               .toSet()
               .toList();
           availableNiepidStudents.assignAll(students);
-          
-          filteredNiepidStudents.assignAll(List<Map<String, dynamic>>.from(data));
+
+          filteredNiepidStudents
+              .assignAll(List<Map<String, dynamic>>.from(data));
         }
       }
     } catch (e) {
@@ -430,13 +469,14 @@ class InstituteController extends GetxController {
     }
 
     if (orgId.isEmpty) {
-      orgId = '68f729a7a1529d51538519bb'; // Fallback to provided orgId if not found
+      orgId =
+          '68f729a7a1529d51538519bb'; // Fallback to provided orgId if not found
     }
 
     try {
       isAcademicYearsLoading.value = true;
       final response = await _apiProvider.getIepList(orgId);
-      
+
       print('IEP Response Status: ${response.statusCode}');
       print('IEP Response Body: ${response.body}');
 
@@ -451,21 +491,28 @@ class InstituteController extends GetxController {
 
         // Populate NIEPID dropdown years
         if (isNipiedDisha.value) {
-          final years = data.map((item) {
-            final yearlyIEP = item['yearlyIEP'];
-            if (yearlyIEP != null && yearlyIEP is Map) {
-              final fromDate = DateTime.tryParse(yearlyIEP['from']?.toString() ?? '');
-              final toDate = DateTime.tryParse(yearlyIEP['to']?.toString() ?? '');
-              if (fromDate != null && toDate != null) {
-                return '${fromDate.year}-${toDate.year}';
-              }
-            }
-            return null;
-          }).whereType<String>().toSet().toList();
-          
+          final years = data
+              .map((item) {
+                final yearlyIEP = item['yearlyIEP'];
+                if (yearlyIEP != null && yearlyIEP is Map) {
+                  final fromDate =
+                      DateTime.tryParse(yearlyIEP['from']?.toString() ?? '');
+                  final toDate =
+                      DateTime.tryParse(yearlyIEP['to']?.toString() ?? '');
+                  if (fromDate != null && toDate != null) {
+                    return '${fromDate.year}-${toDate.year}';
+                  }
+                }
+                return null;
+              })
+              .whereType<String>()
+              .toSet()
+              .toList();
+
           if (years.isNotEmpty) {
             availableNiepidYears.assignAll(years);
-            if (selectedNiepidYear.value == null || !years.contains(selectedNiepidYear.value)) {
+            if (selectedNiepidYear.value == null ||
+                !years.contains(selectedNiepidYear.value)) {
               selectedNiepidYear.value = years.first;
             }
           }
@@ -480,6 +527,168 @@ class InstituteController extends GetxController {
     }
   }
 
+  var isAddingAcademicYear = false.obs;
+
+  Future<void> addAcademicYear({
+    required String yearlyFrom,
+    required String yearlyTo,
+    required List<Map<String, String>> terms,
+  }) async {
+    final org = profileData.value?['organisation'];
+    String orgId = '';
+    if (org is Map) {
+      orgId = (org['id'] ?? org['_id'] ?? '').toString();
+    } else if (org is String) {
+      orgId = org;
+    }
+
+    if (orgId.isEmpty) {
+      orgId = '68f729a7a1529d51538519bb';
+    }
+
+    // Convert dd-mm-yyyy to yyyy-mm-dd
+    String convertDate(String ddmmyyyy) {
+      final parts = ddmmyyyy.split('-');
+      if (parts.length == 3) {
+        return '${parts[2]}-${parts[1]}-${parts[0]}';
+      }
+      return ddmmyyyy;
+    }
+
+    final body = {
+      'organisation': orgId,
+      'yearlyIEP': {
+        'from': convertDate(yearlyFrom),
+        'to': convertDate(yearlyTo),
+      },
+      'termIEP': terms
+          .map((t) => {
+                'from': convertDate(t['from']!),
+                'to': convertDate(t['to']!),
+              })
+          .toList(),
+    };
+
+    print('Add Academic Year Request: $body');
+
+    isAddingAcademicYear.value = true;
+    try {
+      final response = await _apiProvider.addIep(body);
+      print('Add Academic Year Response Status: ${response.statusCode}');
+      print('Add Academic Year Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.back();
+        fetchAcademicYears();
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.snackbar('Success', 'Academic Year added successfully!',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.green,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 3));
+        });
+      } else {
+        final errorMessage =
+            (response.body is Map && response.body['message'] != null)
+                ? response.body['message'].toString()
+                : 'Failed to add Academic Year. Please try again.';
+        Get.snackbar('Error', errorMessage,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      print('Exception adding academic year: $e');
+      Get.snackbar('Error', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+    } finally {
+      isAddingAcademicYear.value = false;
+    }
+  }
+
+  var isUpdatingAcademicYear = false.obs;
+
+  Future<void> updateAcademicYear({
+    required String id,
+    required String yearlyFrom,
+    required String yearlyTo,
+    required List<Map<String, String>> terms,
+  }) async {
+    final org = profileData.value?['organisation'];
+    String orgId = '';
+    if (org is Map) {
+      orgId = (org['id'] ?? org['_id'] ?? '').toString();
+    } else if (org is String) {
+      orgId = org;
+    }
+
+    if (orgId.isEmpty) {
+      orgId = '68f729a7a1529d51538519bb';
+    }
+
+    // Convert dd-mm-yyyy to yyyy-mm-dd
+    String convertDate(String ddmmyyyy) {
+      final parts = ddmmyyyy.split('-');
+      if (parts.length == 3) {
+        return '${parts[2]}-${parts[1]}-${parts[0]}';
+      }
+      return ddmmyyyy;
+    }
+
+    final body = {
+      'organisation': orgId,
+      'yearlyIEP': {
+        'from': convertDate(yearlyFrom),
+        'to': convertDate(yearlyTo),
+      },
+      'termIEP': terms
+          .map((t) => {
+                'from': convertDate(t['from']!),
+                'to': convertDate(t['to']!),
+              })
+          .toList(),
+    };
+
+    print('Update Academic Year Request: $body');
+
+    isUpdatingAcademicYear.value = true;
+    try {
+      final response = await _apiProvider.updateIep(id, body);
+      print('Update Academic Year Response Status: ${response.statusCode}');
+      print('Update Academic Year Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.back();
+        fetchAcademicYears();
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.snackbar('Success', 'Academic Year updated successfully!',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.green,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 3));
+        });
+      } else {
+        final errorMessage =
+            (response.body is Map && response.body['message'] != null)
+                ? response.body['message'].toString()
+                : 'Failed to update Academic Year. Please try again.';
+        Get.snackbar('Error', errorMessage,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      print('Exception updating academic year: $e');
+      Get.snackbar('Error', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+    } finally {
+      isUpdatingAcademicYear.value = false;
+    }
+  }
 
   void changeTabIndex(int index) {
     currentIndex.value = index;
@@ -588,10 +797,6 @@ class InstituteController extends GetxController {
     required String qualification,
     // required String crrNumber,
     required bool agreeToTerms,
-    required String localAddress,
-    required String pinCode,
-    required String district,
-    required String state,
   }) async {
     // Extract org ID and passcode from profileData
     final org = profileData.value?['organisation'];
@@ -603,7 +808,8 @@ class InstituteController extends GetxController {
     }
 
     if (orgId.isEmpty) {
-      Get.snackbar('Error', 'Organisation ID not available. Please restart the app.',
+      Get.snackbar(
+          'Error', 'Organisation ID not available. Please restart the app.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red,
           colorText: Colors.white);
@@ -626,10 +832,11 @@ class InstituteController extends GetxController {
         // crrNumber: crrNumber,
         designation: designation,
         address: Address(
-          pinCode: pinCode,
-          localAddress: localAddress,
-          district: district,
-          state: state,
+          pinCode: '500031',
+          localAddress: 'Gacchibowli',
+          district: 'Hyderabad',
+          state: 'Telangana',
+          country: 'India',
         ),
       );
 
@@ -641,18 +848,25 @@ class InstituteController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         Get.back(); // Return to professionals list first
         fetchEducators(); // Refresh the list
+
+        final successMessage =
+            (response.body is Map && response.body['message'] != null)
+                ? response.body['message'].toString()
+                : 'Professional added successfully!';
+
         // Snackbar shows on the parent screen after back()
         Future.delayed(const Duration(milliseconds: 300), () {
-          Get.snackbar('Success', 'Professional added successfully!',
+          Get.snackbar('Success', successMessage,
               snackPosition: SnackPosition.BOTTOM,
               backgroundColor: Colors.green,
               colorText: Colors.white,
-              duration: const Duration(seconds: 3));
+              duration: const Duration(seconds: 4));
         });
       } else {
-        final errorMessage = (response.body is Map && response.body['message'] != null)
-            ? response.body['message'].toString()
-            : 'Failed to add professional. Please try again.';
+        final errorMessage =
+            (response.body is Map && response.body['message'] != null)
+                ? response.body['message'].toString()
+                : 'Failed to add professional. Please try again.';
         Get.snackbar('Error', errorMessage,
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.red,
@@ -690,7 +904,7 @@ class InstituteController extends GetxController {
     List<String>? disability,
     String? studentDP,
     String? idCard,
-    String? assignedProfessionalId,
+    List<String>? assignedProfessionalIds,
   }) async {
     final org = profileData.value?['organisation'];
     String orgId = '';
@@ -723,12 +937,14 @@ class InstituteController extends GetxController {
 
       String? userId;
       if (profileData.value != null) {
-        userId = (profileData.value!['id'] ?? profileData.value!['_id'])?.toString();
+        userId =
+            (profileData.value!['id'] ?? profileData.value!['_id'])?.toString();
       }
 
       final List<String> accessIds = [];
-      if (assignedProfessionalId != null && assignedProfessionalId.isNotEmpty) {
-        accessIds.add(assignedProfessionalId);
+      if (assignedProfessionalIds != null &&
+          assignedProfessionalIds.isNotEmpty) {
+        accessIds.addAll(assignedProfessionalIds);
       }
       if (userId != null) {
         accessIds.add(userId);
@@ -761,7 +977,8 @@ class InstituteController extends GetxController {
         "numberUDID": numberUDID ?? "",
         "disability": (disability ?? []).map((label) {
           try {
-            final type = disabilityTypesList.firstWhere((e) => e['label'] == label);
+            final type =
+                disabilityTypesList.firstWhere((e) => e['label'] == label);
             return type['value'] ?? label;
           } catch (e) {
             return label;
@@ -794,9 +1011,10 @@ class InstituteController extends GetxController {
               colorText: Colors.white);
         });
       } else {
-        final errorMessage = (response.body is Map && response.body['message'] != null)
-            ? response.body['message'].toString()
-            : 'Failed to add student. Please try again.';
+        final errorMessage =
+            (response.body is Map && response.body['message'] != null)
+                ? response.body['message'].toString()
+                : 'Failed to add student. Please try again.';
         Get.snackbar('Error', errorMessage,
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.red,
@@ -804,6 +1022,154 @@ class InstituteController extends GetxController {
       }
     } catch (e) {
       print('Exception adding student: $e');
+      Get.snackbar('Error', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+    } finally {
+      isAddingStudent.value = false;
+    }
+  }
+
+  Future<void> updateStudent({
+    required String studentId,
+    required String userName,
+    required String fullName,
+    required String dateOfBirth,
+    String? studentClass,
+    required String gender,
+    required String parentName,
+    required String parentEmail,
+    required String parentMobile,
+    required String parentRelation,
+    required String admissionDate,
+    required String pinCode,
+    required String state,
+    required String district,
+    required String localAddress,
+    required String presentAddress,
+    String? certificateUDID,
+    String? numberUDID,
+    List<String>? disability,
+    String? studentDP,
+    String? idCard,
+    List<String>? assignedProfessionalIds,
+  }) async {
+    final org = profileData.value?['organisation'];
+    String orgId = '';
+    if (org is Map) {
+      orgId = (org['id'] ?? org['_id'] ?? '').toString();
+    } else if (org is String) {
+      orgId = org;
+    }
+
+    if (orgId.isEmpty) {
+      Get.snackbar('Error', 'Organisation ID not available.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+      return;
+    }
+
+    isAddingStudent.value = true;
+    try {
+      String formatDate(String date) {
+        try {
+          final parts = date.split('-');
+          if (parts.length == 3) {
+            // Convert dd-MM-yyyy to yyyy-MM-dd
+            return '${parts[2]}-${parts[1]}-${parts[0]}';
+          }
+        } catch (e) {}
+        return date;
+      }
+
+      String? userId;
+      if (profileData.value != null) {
+        userId =
+            (profileData.value!['id'] ?? profileData.value!['_id'])?.toString();
+      }
+
+      final List<String> accessIds = [];
+      if (assignedProfessionalIds != null &&
+          assignedProfessionalIds.isNotEmpty) {
+        accessIds.addAll(assignedProfessionalIds);
+      }
+      if (userId != null) {
+        accessIds.add(userId);
+      }
+
+      final Map<String, dynamic> requestBody = {
+        "roles": "Student",
+        "role": "Student",
+        "addedBy": "Institute",
+        "organisation": orgId,
+        "accessId": accessIds,
+        "userName": userName,
+        "fullName": fullName,
+        "dateOfBirth": formatDate(dateOfBirth),
+        "class": studentClass ?? "",
+        "gender": gender.toLowerCase(),
+        "parentRelation": parentRelation,
+        "idCard": idCard ?? "",
+        "admissionDate": formatDate(admissionDate),
+        "pinCode": pinCode,
+        "localAddress": localAddress,
+        "presentAddress": presentAddress,
+        "district": district,
+        "state": state,
+        "country": "India",
+        "parentName": parentName,
+        "contactNumber": parentMobile,
+        "email": parentEmail,
+        "certificateUDID": certificateUDID ?? "",
+        "numberUDID": numberUDID ?? "",
+        "disability": (disability ?? []).map((label) {
+          try {
+            final type =
+                disabilityTypesList.firstWhere((e) => e['label'] == label);
+            return type['value'] ?? label;
+          } catch (e) {
+            return label;
+          }
+        }).toList(),
+        "studentDP": studentDP ?? "",
+        "acceptedTerms": true,
+        "isVerified": true,
+        "currentId": "",
+        "homeSchool": "",
+        "classHistory": studentClass != null ? [studentClass] : [],
+        "previousClass": "",
+        "organizationName": "",
+        "organizationEmail": "",
+      };
+
+      print('Update Student Request: $requestBody');
+      final response = await _apiProvider.updateStudent(studentId, requestBody);
+      print('Update Student Response Status: ${response.statusCode}');
+      print('Update Student Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.back();
+        fetchStudents(); // Refresh list
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.snackbar('Success', 'Student updated successfully!',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.green,
+              colorText: Colors.white);
+        });
+      } else {
+        final errorMessage =
+            (response.body is Map && response.body['message'] != null)
+                ? response.body['message'].toString()
+                : 'Failed to update student. Please try again.';
+        Get.snackbar('Error', errorMessage,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      print('Exception updating student: $e');
       Get.snackbar('Error', e.toString(),
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red,
@@ -881,7 +1247,8 @@ class InstituteController extends GetxController {
       return;
     }
 
-    final studentId = studentData['id'] ?? studentData['_id'] ?? studentData['studentId'];
+    final studentId =
+        studentData['id'] ?? studentData['_id'] ?? studentData['studentId'];
     if (studentId == null) {
       Get.snackbar('Error', 'Student ID not found',
           snackPosition: SnackPosition.BOTTOM,
@@ -894,9 +1261,11 @@ class InstituteController extends GetxController {
       isQuestionsLoading.value = true;
 
       // 1. Calculate age from student data
-      final ageStr = calculateAge(studentData['dateOfBirth'] ?? studentData['dob'] ?? studentData['age']);
+      final ageStr = calculateAge(studentData['dateOfBirth'] ??
+          studentData['dob'] ??
+          studentData['age']);
       final age = int.tryParse(ageStr) ?? 0;
-      
+
       // 2. Set IEP level based on age (According to Disha/NIEPID standards)
       if (age >= 14) {
         selectedIepLevel.value = '14+ Years';
@@ -905,17 +1274,20 @@ class InstituteController extends GetxController {
       } else {
         selectedIepLevel.value = '3-14 Years'; // Default for under 3
       }
-      
-      print('DEBUG: Getting assessment for Student ID: $studentId, Age: $age, Level: ${selectedIepLevel.value}');
+
+      print(
+          'DEBUG: Getting assessment for Student ID: $studentId, Age: $age, Level: ${selectedIepLevel.value}');
 
       // 3. Fetch Student Goals (Existing Answers)
       // Link: https://backend.divyangsarthi.in/niepid-disha-assessment/user/student-goals/<studentId>
-      final goalsResponse = await _apiProvider.getStudentGoals(studentId.toString());
+      final goalsResponse =
+          await _apiProvider.getStudentGoals(studentId.toString());
       if (goalsResponse.statusCode == 200) {
         niepidStudentGoals.value = goalsResponse.body;
         print('DEBUG: Student Goals fetched successfully');
       } else {
-        print('DEBUG: No existing goals found or error fetching goals: ${goalsResponse.statusText}');
+        print(
+            'DEBUG: No existing goals found or error fetching goals: ${goalsResponse.statusText}');
         niepidStudentGoals.value = null;
       }
 
@@ -923,18 +1295,20 @@ class InstituteController extends GetxController {
       // Link: https://backend.divyangsarthi.in/niepid-disha-assessment/user/questions/<orgId>/<studentId>
       // Using the specific Disha Assessment Org ID provided in the request
       const String dishaOrgId = "68d4e4e20e437cd03453ccd8";
-      final response = await _apiProvider.getNiepidQuestions(dishaOrgId, studentId.toString());
-      
+      final response = await _apiProvider.getNiepidQuestions(
+          dishaOrgId, studentId.toString());
+
       if (response.statusCode == 200) {
         niepidQuestions.value = response.body;
         print('DEBUG: Questions fetched successfully');
-        
+
         // 5. Parse goals/answers into assessmentAnswers map
         _parseStudentGoals();
-        
+
         Get.to(() => const IepQuestionnaireView());
       } else {
-        Get.snackbar('Error', 'Failed to fetch questions: ${response.statusText}',
+        Get.snackbar(
+            'Error', 'Failed to fetch questions: ${response.statusText}',
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.red.withOpacity(0.1),
             colorText: Colors.red);
@@ -954,7 +1328,7 @@ class InstituteController extends GetxController {
     assessmentAnswers.clear();
     final goalsData = niepidStudentGoals.value;
     final questionsData = niepidQuestions.value;
-    
+
     if (goalsData == null || questionsData == null) return;
 
     // Helper: Map questionId to options
@@ -996,12 +1370,14 @@ class InstituteController extends GetxController {
                         mainOpt = optsList[optIndex].toString();
                       }
                     }
-                    
+
                     final score = ansItem['checkboxValue']?.toString();
-                    
-                    final existing = assessmentAnswers[qId] ?? <String, dynamic>{};
+
+                    final existing =
+                        assessmentAnswers[qId] ?? <String, dynamic>{};
                     if (mainOpt.isNotEmpty) existing['mainOption'] = mainOpt;
-                    if (score != null && score.isNotEmpty) existing['score'] = score;
+                    if (score != null && score.isNotEmpty)
+                      existing['score'] = score;
                     assessmentAnswers[qId] = existing;
                   }
                 }
@@ -1021,8 +1397,11 @@ class InstituteController extends GetxController {
               if (termList != null) {
                 for (var goalItem in termList) {
                   final qId = goalItem['questionId']?.toString();
-                  if (qId != null && qId.isNotEmpty && goalItem['isGoal'] == true) {
-                    final existing = assessmentAnswers[qId] ?? <String, dynamic>{};
+                  if (qId != null &&
+                      qId.isNotEmpty &&
+                      goalItem['isGoal'] == true) {
+                    final existing =
+                        assessmentAnswers[qId] ?? <String, dynamic>{};
                     existing['isGoal'] = true;
                     existing['priority'] = goalItem['priority'];
                     assessmentAnswers[qId] = existing;
@@ -1065,10 +1444,10 @@ class InstituteController extends GetxController {
 
   String calculateAge(dynamic dobValue) {
     if (dobValue == null) return "-";
-    
+
     // If it's already a number (age)
     if (dobValue is num) return dobValue.toString();
-    
+
     // If it's a string, try to parse as date
     try {
       final dob = DateTime.tryParse(dobValue.toString());
@@ -1080,7 +1459,8 @@ class InstituteController extends GetxController {
       }
       final now = DateTime.now();
       int age = now.year - dob.year;
-      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      if (now.month < dob.month ||
+          (now.month == dob.month && now.day < dob.day)) {
         age--;
       }
       return age.toString();
@@ -1093,17 +1473,18 @@ class InstituteController extends GetxController {
     try {
       isCareGiverLoading.value = true;
       final response = await _apiProvider.getCareGiverMeetingData();
-      
+
       print('Care Giver Meeting Response Status: ${response.statusCode}');
       print('Care Giver Meeting Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         careGiverMeetingData.value = response.body;
-        
+
         // Extract teachers
         final List? teachers = response.body['teacherStatus'];
         if (teachers != null) {
-          availableCareGiverTeachers.assignAll(List<Map<String, dynamic>>.from(teachers));
+          availableCareGiverTeachers
+              .assignAll(List<Map<String, dynamic>>.from(teachers));
         }
 
         // Initially show all students or filter if a teacher is already selected
@@ -1163,7 +1544,8 @@ class InstituteController extends GetxController {
     if (qs != null) {
       for (var q in qs) {
         final id = q['_id']?.toString() ?? q['id']?.toString() ?? '';
-        if (assessmentAnswers.containsKey(id) && assessmentAnswers[id]!['mainOption'] != null) {
+        if (assessmentAnswers.containsKey(id) &&
+            assessmentAnswers[id]!['mainOption'] != null) {
           count++;
         }
       }
@@ -1186,23 +1568,38 @@ class InstituteController extends GetxController {
   }
 
   int get totalQuestionsCount {
-    return filteredNiepidDomains.fold(0, (sum, d) => sum + getDomainTotalQuestionsCount(d));
+    return filteredNiepidDomains.fold(
+        0, (sum, d) => sum + getDomainTotalQuestionsCount(d));
   }
 
   int get totalAnsweredCount {
-    return filteredNiepidDomains.fold(0, (sum, d) => sum + getDomainAnsweredCount(d));
+    return filteredNiepidDomains.fold(
+        0, (sum, d) => sum + getDomainAnsweredCount(d));
   }
 
   int get totalGoalsCount {
-    return filteredNiepidDomains.fold(0, (sum, d) => sum + getDomainGoalsCount(d));
+    return filteredNiepidDomains.fold(
+        0, (sum, d) => sum + getDomainGoalsCount(d));
   }
 
   // Age Filtering Logic
   static const _ageGroupFields = [
-    'ageGroup', 'age_group', 'agegroup', 'AgeGroup',
-    'level', 'Level', 'type', 'Type',
-    'category', 'Category', 'group', 'Group',
-    'standard', 'Standard', 'ageRange', 'age_range',
+    'ageGroup',
+    'age_group',
+    'agegroup',
+    'AgeGroup',
+    'level',
+    'Level',
+    'type',
+    'Type',
+    'category',
+    'Category',
+    'group',
+    'Group',
+    'standard',
+    'Standard',
+    'ageRange',
+    'age_range',
   ];
 
   String _ageGroupOf(Map obj) {
@@ -1234,14 +1631,17 @@ class InstituteController extends GetxController {
     }
 
     // "3-14 Years" -> "3-14"
-    final rangeOnly = level.replaceAll(RegExp(r'\s*years\s*', caseSensitive: false), '').trim();
+    final rangeOnly = level
+        .replaceAll(RegExp(r'\s*years\s*', caseSensitive: false), '')
+        .trim();
 
     final filtered = <Map<String, dynamic>>[];
     for (final domain in allNiepidDomains) {
       // Check domain level first
       final domainAg = _ageGroupOf(domain);
       // If domain has a level and it doesn't match, skip the whole domain
-      if (domainAg.isNotEmpty && !_ageGroupMatches(domainAg, rangeOnly)) continue;
+      if (domainAg.isNotEmpty && !_ageGroupMatches(domainAg, rangeOnly))
+        continue;
 
       final allQs = (domain['questions'] as List? ?? []);
       final filteredQs = allQs.where((q) {
@@ -1260,7 +1660,8 @@ class InstituteController extends GetxController {
     }
 
     filteredNiepidDomains.assignAll(filtered);
-    print('DEBUG: Filtered to ${filteredNiepidDomains.length} domains for level $level');
+    print(
+        'DEBUG: Filtered to ${filteredNiepidDomains.length} domains for level $level');
   }
 
   // --- Goal Monitoring Methods ---
@@ -1268,7 +1669,8 @@ class InstituteController extends GetxController {
   Future<void> fetchGoalMonitoring() async {
     final studentName = selectedGoalMonitoringStudent.value;
     if (studentName == null || studentName.isEmpty) {
-      Get.snackbar('Error', 'Please select a student', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Please select a student',
+          snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
@@ -1276,13 +1678,17 @@ class InstituteController extends GetxController {
     final allData = niepidStudentAssessments.value?['data'] as List?;
     if (allData == null) return;
 
-    final student = allData.firstWhere((s) => s['studentName'] == studentName, orElse: () => null);
+    final student = allData.firstWhere((s) => s['studentName'] == studentName,
+        orElse: () => null);
     if (student == null) {
-      Get.snackbar('Error', 'Student data not found', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Student data not found',
+          snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
-    final studentId = student['studentId']?.toString() ?? student['id']?.toString() ?? student['_id']?.toString();
+    final studentId = student['studentId']?.toString() ??
+        student['id']?.toString() ??
+        student['_id']?.toString();
     if (studentId == null) return;
 
     isGoalMonitoringLoading.value = true;
@@ -1291,7 +1697,7 @@ class InstituteController extends GetxController {
       final response = await _apiProvider.verifyStudentGoals(studentId);
       if (response.statusCode == 200) {
         goalMonitoringData.value = response.body;
-        
+
         // Extract statuses
         if (response.body['status'] is Map) {
           final statusMap = response.body['status'] as Map;
@@ -1305,15 +1711,19 @@ class InstituteController extends GetxController {
         // Fetch questions if not already loaded for this student
         if (allNiepidDomains.isEmpty) {
           final orgId = "68d4e4e20e437cd03453ccd8";
-          final qResponse = await _apiProvider.getNiepidQuestions(orgId, studentId);
-          if (qResponse.statusCode == 200 && qResponse.body['domains'] is List) {
-            allNiepidDomains.assignAll(List<Map<String, dynamic>>.from(qResponse.body['domains']));
+          final qResponse =
+              await _apiProvider.getNiepidQuestions(orgId, studentId);
+          if (qResponse.statusCode == 200 &&
+              qResponse.body['domains'] is List) {
+            allNiepidDomains.assignAll(
+                List<Map<String, dynamic>>.from(qResponse.body['domains']));
           }
         }
         await fetchTermStudentGoals(0);
         showGoalMonitoringDetails.value = true;
       } else {
-        Get.snackbar('Error', 'Failed to fetch goal monitoring data', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error', 'Failed to fetch goal monitoring data',
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       print('Exception fetching goal monitoring: $e');
@@ -1329,9 +1739,12 @@ class InstituteController extends GetxController {
 
     // Find student ID
     final allData = niepidStudentAssessments.value?['data'] as List?;
-    final student = allData?.firstWhere((s) => s['studentName'] == studentName, orElse: () => null);
-    final studentId = student?['studentId']?.toString() ?? student?['id']?.toString() ?? student?['_id']?.toString();
-    
+    final student = allData?.firstWhere((s) => s['studentName'] == studentName,
+        orElse: () => null);
+    final studentId = student?['studentId']?.toString() ??
+        student?['id']?.toString() ??
+        student?['_id']?.toString();
+
     // Find year ID
     final yearObj = academicYears.firstWhere((y) {
       final yearlyIEP = y['yearlyIEP'];
@@ -1353,7 +1766,8 @@ class InstituteController extends GetxController {
 
     isGoalMonitoringLoading.value = true;
     try {
-      final response = await _apiProvider.getTermStudentGoals(studentId, yearId, termKey);
+      final response =
+          await _apiProvider.getTermStudentGoals(studentId, yearId, termKey);
       if (response.statusCode == 200) {
         final body = response.body;
         if (termKey == 'entry') {
@@ -1361,7 +1775,8 @@ class InstituteController extends GetxController {
           if (yearIdStr != null && body['goals'] != null) {
             final goalsMap = body['goals'] as Map;
             if (goalsMap.containsKey(yearIdStr)) {
-              baselineGoalsCache.value = goalsMap[yearIdStr]?['entry'] as List? ?? [];
+              baselineGoalsCache.value =
+                  goalsMap[yearIdStr]?['entry'] as List? ?? [];
             }
           }
           if (body['goals'] != null) {
@@ -1369,7 +1784,8 @@ class InstituteController extends GetxController {
             baselineDomainGoalsCache.clear();
             goalsMap.forEach((key, value) {
               if (value is Map && value.containsKey('entry')) {
-                baselineDomainGoalsCache[key.toString()] = value['entry'] as List? ?? [];
+                baselineDomainGoalsCache[key.toString()] =
+                    value['entry'] as List? ?? [];
               }
             });
           }
@@ -1386,10 +1802,10 @@ class InstituteController extends GetxController {
 
   void prepareGoalMonitoringDomains() {
     if (goalMonitoringData.value == null) return;
-    
+
     final termKeys = ['entry', 'term1', 'term2'];
     final termKey = termKeys[activeGoalTab.value];
-    
+
     var answers = goalMonitoringData.value!['answer'] as Map?;
     var goals = goalMonitoringData.value!['goals'] as Map?;
 
@@ -1399,7 +1815,7 @@ class InstituteController extends GetxController {
       final yearAnswers = answers[yearId]?[termKey] as List?;
       final yearGoals = goals?[yearId]?[termKey] as List?;
       final baselineGoals = baselineGoalsCache;
-      
+
       final List<Map<String, dynamic>> prepared = [];
 
       for (var domain in allNiepidDomains) {
@@ -1408,13 +1824,19 @@ class InstituteController extends GetxController {
 
         for (var q in questions) {
           final qId = q['_id']?.toString() ?? q['id']?.toString() ?? "";
-          
-          final qAnswer = yearAnswers?.firstWhere((a) => a['questionId']?.toString() == qId, orElse: () => null);
-          
+
+          final qAnswer = yearAnswers?.firstWhere(
+              (a) => a['questionId']?.toString() == qId,
+              orElse: () => null);
+
           // A goal should be shown if it has answers/goals for the current term OR if it was a goal in the baseline
-          var qGoal = yearGoals?.firstWhere((g) => g['questionId']?.toString() == qId, orElse: () => null);
+          var qGoal = yearGoals?.firstWhere(
+              (g) => g['questionId']?.toString() == qId,
+              orElse: () => null);
           if (qGoal == null && baselineGoals.isNotEmpty) {
-             qGoal = baselineGoals.firstWhere((g) => g['questionId']?.toString() == qId, orElse: () => null);
+            qGoal = baselineGoals.firstWhere(
+                (g) => g['questionId']?.toString() == qId,
+                orElse: () => null);
           }
 
           if (qAnswer != null || qGoal != null) {
@@ -1438,25 +1860,31 @@ class InstituteController extends GetxController {
     // Handle domain-keyed response (Type A - verifyStudentGoals)
     final List<Map<String, dynamic>> prepared = [];
     for (var domain in allNiepidDomains) {
-      final domainId = domain['_id']?.toString() ?? domain['id']?.toString() ?? "";
+      final domainId =
+          domain['_id']?.toString() ?? domain['id']?.toString() ?? "";
       final domainAnswers = answers?[domainId]?[termKey] as List?;
       final domainGoals = goals?[domainId]?[termKey] as List?;
       final baselineGoals = baselineDomainGoalsCache[domainId] ?? [];
 
-      if ((domainAnswers != null && domainAnswers.isNotEmpty) || 
-          (domainGoals != null && domainGoals.isNotEmpty) || 
+      if ((domainAnswers != null && domainAnswers.isNotEmpty) ||
+          (domainGoals != null && domainGoals.isNotEmpty) ||
           baselineGoals.isNotEmpty) {
-        
         final questions = domain['questions'] as List? ?? [];
         final List<Map<String, dynamic>> filteredQuestions = [];
 
         for (var q in questions) {
           final qId = q['_id']?.toString() ?? q['id']?.toString() ?? "";
-          final qAnswer = domainAnswers?.firstWhere((a) => a['questionId']?.toString() == qId, orElse: () => null);
-          
-          var qGoal = domainGoals?.firstWhere((g) => g['questionId']?.toString() == qId, orElse: () => null);
+          final qAnswer = domainAnswers?.firstWhere(
+              (a) => a['questionId']?.toString() == qId,
+              orElse: () => null);
+
+          var qGoal = domainGoals?.firstWhere(
+              (g) => g['questionId']?.toString() == qId,
+              orElse: () => null);
           if (qGoal == null && baselineGoals.isNotEmpty) {
-             qGoal = baselineGoals.firstWhere((g) => g['questionId']?.toString() == qId, orElse: () => null);
+            qGoal = baselineGoals.firstWhere(
+                (g) => g['questionId']?.toString() == qId,
+                orElse: () => null);
           }
 
           if (qAnswer != null || qGoal != null) {
@@ -1484,7 +1912,8 @@ class InstituteController extends GetxController {
   String getStudentAge() {
     final student = getGoalMonitoringStudentDetails();
     if (student == null) return 'N/A';
-    final dob = student['dateOfBirth']?.toString() ?? student['dob']?.toString();
+    final dob =
+        student['dateOfBirth']?.toString() ?? student['dob']?.toString();
     return calculateAge(dob);
   }
 
@@ -1496,7 +1925,8 @@ class InstituteController extends GetxController {
     final studentName = selectedGoalMonitoringStudent.value;
     if (studentName == null) return null;
     final allData = niepidStudentAssessments.value?['data'] as List?;
-    return allData?.firstWhere((s) => s['studentName'] == studentName, orElse: () => null);
+    return allData?.firstWhere((s) => s['studentName'] == studentName,
+        orElse: () => null);
   }
 
   List<Map<String, dynamic>> getGoalsForTerm(String termKey) {
@@ -1515,7 +1945,9 @@ class InstituteController extends GetxController {
 
   Future<void> submitRework(String remarks) async {
     final student = getGoalMonitoringStudentDetails();
-    final studentId = student?['studentId']?.toString() ?? student?['id']?.toString() ?? student?['_id']?.toString();
+    final studentId = student?['studentId']?.toString() ??
+        student?['id']?.toString() ??
+        student?['_id']?.toString();
     if (studentId == null) return;
 
     final termKeys = ['entry', 'term1', 'term2'];
@@ -1523,21 +1955,24 @@ class InstituteController extends GetxController {
 
     isGoalMonitoringLoading.value = true;
     try {
-      final response = await _apiProvider.revokeSubmission(studentId, currentTerm, remarks);
+      final response =
+          await _apiProvider.revokeSubmission(studentId, currentTerm, remarks);
       if (response.statusCode == 200) {
-        Get.snackbar('Success', 'Assessment sent for rework', 
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange.withOpacity(0.1),
-          colorText: Colors.orange);
+        Get.snackbar('Success', 'Assessment sent for rework',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange.withOpacity(0.1),
+            colorText: Colors.orange);
         // Refresh data to update status
         fetchGoalMonitoring();
       } else {
-        Get.snackbar('Error', 'Failed to revoke submission: ${response.body?['message'] ?? response.statusText}', 
-          snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error',
+            'Failed to revoke submission: ${response.body?['message'] ?? response.statusText}',
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       print('Exception revoking submission: $e');
-      Get.snackbar('Error', 'Something went wrong', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Something went wrong',
+          snackPosition: SnackPosition.BOTTOM);
     } finally {
       isGoalMonitoringLoading.value = false;
     }
@@ -1551,7 +1986,10 @@ class InstituteController extends GetxController {
     if (filteredCareGiverStudents.isEmpty) return;
 
     final studentIds = filteredCareGiverStudents
-        .map((s) => s['studentId']?.toString() ?? s['id']?.toString() ?? s['_id']?.toString())
+        .map((s) =>
+            s['studentId']?.toString() ??
+            s['id']?.toString() ??
+            s['_id']?.toString())
         .whereType<String>()
         .toList();
 
@@ -1565,14 +2003,15 @@ class InstituteController extends GetxController {
       );
 
       if (response.statusCode == 200) {
-        Get.snackbar('Success', 'Assessment status updated to $action', 
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green.withOpacity(0.1),
-          colorText: Colors.green);
+        Get.snackbar('Success', 'Assessment status updated to $action',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.withOpacity(0.1),
+            colorText: Colors.green);
         // Refresh data
         fetchCareGiverMeetingData();
       } else {
-        Get.snackbar('Error', 'Failed to update status', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error', 'Failed to update status',
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       print('Exception updating care giver status: $e');
@@ -1583,7 +2022,9 @@ class InstituteController extends GetxController {
 
   Future<void> submitApprove() async {
     final student = getGoalMonitoringStudentDetails();
-    final studentId = student?['studentId']?.toString() ?? student?['id']?.toString() ?? student?['_id']?.toString();
+    final studentId = student?['studentId']?.toString() ??
+        student?['id']?.toString() ??
+        student?['_id']?.toString();
     if (studentId == null) return;
 
     final termKeys = ['entry', 'term1', 'term2'];
@@ -1591,23 +2032,175 @@ class InstituteController extends GetxController {
 
     isGoalMonitoringLoading.value = true;
     try {
-      final response = await _apiProvider.approveSubmission(studentId, currentTerm);
+      final response =
+          await _apiProvider.approveSubmission(studentId, currentTerm);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Get.snackbar('Success', 'Assessment approved successfully', 
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green.withOpacity(0.1),
-          colorText: Colors.green);
+        Get.snackbar('Success', 'Assessment approved successfully',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.withOpacity(0.1),
+            colorText: Colors.green);
         // Refresh data to update status
         fetchGoalMonitoring();
       } else {
-        Get.snackbar('Error', 'Failed to approve submission: ${response.body?['message'] ?? response.statusText}', 
-          snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('Error',
+            'Failed to approve submission: ${response.body?['message'] ?? response.statusText}',
+            snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       print('Exception approving submission: $e');
-      Get.snackbar('Error', 'Something went wrong', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Something went wrong',
+          snackPosition: SnackPosition.BOTTOM);
     } finally {
       isGoalMonitoringLoading.value = false;
+    }
+  }
+
+  var selectedStudentReportYearId = ''.obs;
+
+  String formatIepYear(Map<String, dynamic> iep) {
+    final yearly = iep['yearlyIEP'];
+    if (yearly != null) {
+      final fromStr = yearly['from']?.toString() ?? '';
+      final toStr = yearly['to']?.toString() ?? '';
+      if (fromStr.length >= 4 && toStr.length >= 4) {
+        return '${fromStr.substring(0, 4)}-${toStr.substring(0, 4)}';
+      }
+    }
+    return 'Unknown Year';
+  }
+
+  Future<void> downloadStudentReport(
+    String studentId,
+    String yearId,
+    String term,
+    String title, {
+    bool withGoalDetails = true,
+    String goalType = 'Both',
+    bool withRemarks = true,
+  }) async {
+    try {
+      Get.snackbar('Download', 'Fetching data for $title report...',
+          snackPosition: SnackPosition.BOTTOM);
+      final response =
+          await _apiProvider.getStudentOverview(studentId, yearId, term);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.body;
+
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.Page(
+            build: (pw.Context context) {
+              return pw.Center(
+                child: pw.Text('$title Report\n\nData:\n$data'),
+              );
+            },
+          ),
+        );
+
+        Directory? directory;
+        if (Platform.isAndroid) {
+          directory = await getExternalStorageDirectory();
+        } else {
+          directory = await getApplicationDocumentsDirectory();
+        }
+
+        if (directory == null) {
+          Get.snackbar('Error', 'Could not access storage directory');
+          return;
+        }
+
+        final fileName =
+            'Student_${term}_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final path = '${directory.path}/$fileName';
+        final file = File(path);
+        await file.writeAsBytes(await pdf.save());
+
+        print('PDF saved to: $path');
+        Get.snackbar('Success', 'Report saved: $fileName',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 4));
+      } else {
+        Get.snackbar('Error', 'Failed to fetch data: ${response.statusCode}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to generate PDF: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+      print("Getting Error for PDF $e");
+    }
+  }
+
+  var isUpdatingEducator = false.obs;
+
+  Future<bool> updateEducator({
+    required String educatorId,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String mobile,
+    required String designation,
+    required String qualification,
+    required String cRRNumber,
+  }) async {
+    final org = profileData.value?['organisation'];
+    String orgId = '';
+    if (org is Map) {
+      orgId = (org['id'] ?? org['_id'] ?? '').toString();
+    } else if (org is String) {
+      orgId = org;
+    }
+
+    isUpdatingEducator.value = true;
+    try {
+      final body = {
+        "roles": "Educator",
+        if (orgId.isNotEmpty) "organisation": orgId,
+        "firstName": firstName,
+        "lastName": lastName,
+        "cRRNumber": cRRNumber,
+        "email": email,
+        "designation": designation,
+        "mobile": mobile,
+        "qualification": qualification,
+        "isNipiedDisha": isNipiedDisha.value,
+      };
+
+      final response = await _apiProvider.updateEducator(educatorId, body);
+
+      print('Update Educator Status: ${response.statusCode}');
+      print('Update Educator Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        fetchEducators(); // Refresh the list
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.snackbar('Success', 'Educator updated successfully!',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.green,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 3));
+        });
+        return true;
+      } else {
+        Get.snackbar('Error', 'Failed to update educator',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+        return false;
+      }
+    } catch (e) {
+      print('Exception updating educator: $e');
+      Get.snackbar('Error', 'An error occurred',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+      return false;
+    } finally {
+      isUpdatingEducator.value = false;
     }
   }
 }

@@ -81,7 +81,8 @@ class InstituteStudentView extends GetView<InstituteController> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
+              Icon(Icons.person_off_outlined,
+                  size: 64, color: Colors.grey[400]),
               const SizedBox(height: 16),
               Text(
                 'No students found',
@@ -98,16 +99,19 @@ class InstituteStudentView extends GetView<InstituteController> {
       }
 
       if (isMobile) {
-        return ListView.builder(
-          padding: const EdgeInsets.all(20),
-          itemCount: students.length,
-          itemBuilder: (context, index) {
-            final student = students[index];
-            return _StudentCard(
-              student: student,
-              onTap: () => controller.viewStudentDetail(student),
-            );
-          },
+        return RefreshIndicator(
+          onRefresh: controller.fetchStudents,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(20),
+            itemCount: students.length,
+            itemBuilder: (context, index) {
+              final student = students[index];
+              return _StudentCard(
+                student: student,
+                onTap: () => controller.viewStudentDetail(student),
+              );
+            },
+          ),
         );
       } else {
         return SingleChildScrollView(
@@ -131,13 +135,19 @@ class InstituteStudentView extends GetView<InstituteController> {
                 ],
                 rows: List<DataRow>.generate(students.length, (index) {
                   final student = students[index];
-                  final bool isMale = student['gender']?.toString().toLowerCase() == 'male';
-                  final String studentName = student['fullName'] ?? student['userName'] ?? 'N/A';
-                  final String enrollment = student['enrollmentNumber'] ?? 'N/A';
+                  final bool isMale =
+                      student['gender']?.toString().toLowerCase() == 'male';
+                  final String studentName =
+                      student['fullName'] ?? student['userName'] ?? 'N/A';
+                  final String enrollment =
+                      student['enrollmentNumber'] ?? 'N/A';
                   final String userName = student['userName'] ?? 'N/A';
                   final String className = student['class'] ?? 'N/A';
-                  final String gender = student['gender']?.toString().capitalizeFirst ?? 'N/A';
-                  final String dob = student['dateOfBirth']?.toString().split('T').first ?? 'N/A';
+                  final String gender =
+                      student['gender']?.toString().capitalizeFirst ?? 'N/A';
+                  final String dob =
+                      student['dateOfBirth']?.toString().split('T').first ??
+                          'N/A';
                   final bool isVerified = student['isVerified'] ?? false;
                   final String studentDP = student['studentDP'] ?? '';
 
@@ -147,11 +157,16 @@ class InstituteStudentView extends GetView<InstituteController> {
                       DataCell(
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: (isMale ? Colors.blue : Colors.pink).withOpacity(0.1),
-                          backgroundImage: studentDP.isNotEmpty ? NetworkImage(studentDP) : null,
+                          backgroundColor: (isMale ? Colors.blue : Colors.pink)
+                              .withOpacity(0.1),
+                          backgroundImage: studentDP.isNotEmpty
+                              ? NetworkImage(studentDP)
+                              : null,
                           child: studentDP.isEmpty
                               ? Icon(
-                                  isMale ? Icons.face : Icons.face_retouching_natural,
+                                  isMale
+                                      ? Icons.face
+                                      : Icons.face_retouching_natural,
                                   color: isMale ? Colors.blue : Colors.pink,
                                   size: 20,
                                 )
@@ -159,15 +174,18 @@ class InstituteStudentView extends GetView<InstituteController> {
                         ),
                       ),
                       DataCell(Text(userName)),
-                      DataCell(Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                      DataCell(Text(studentName,
+                          style: const TextStyle(fontWeight: FontWeight.bold))),
                       DataCell(Text(enrollment)),
                       DataCell(Text(className)),
                       DataCell(Text(gender)),
                       DataCell(Text(dob)),
                       DataCell(Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1),
+                          color: (isVerified ? Colors.green : Colors.orange)
+                              .withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -182,12 +200,15 @@ class InstituteStudentView extends GetView<InstituteController> {
                       DataCell(Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.visibility, color: AppTheme.primaryColor, size: 20),
-                            onPressed: () => controller.viewStudentDetail(student),
+                            icon: const Icon(Icons.visibility,
+                                color: AppTheme.primaryColor, size: 20),
+                            onPressed: () =>
+                                controller.viewStudentDetail(student),
                             tooltip: 'View',
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                            icon: const Icon(Icons.edit,
+                                color: Colors.blue, size: 20),
                             onPressed: () {},
                             tooltip: 'Edit',
                           ),
@@ -214,7 +235,8 @@ class _StudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isMale = student['gender']?.toString().toLowerCase() == 'male';
-    final String studentName = student['fullName'] ?? student['userName'] ?? 'N/A';
+    final String studentName =
+        student['fullName'] ?? student['userName'] ?? 'N/A';
     final String enrollment = student['enrollmentNumber'] ?? 'N/A';
     final String className = student['class'] ?? 'N/A';
     final bool isVerified = student['isVerified'] ?? false;
@@ -246,8 +268,9 @@ class _StudentCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: (isMale ? Colors.blue : Colors.pink).withOpacity(0.1),
                   shape: BoxShape.circle,
-                  image: studentDP.isNotEmpty 
-                      ? DecorationImage(image: NetworkImage(studentDP), fit: BoxFit.cover) 
+                  image: studentDP.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(studentDP), fit: BoxFit.cover)
                       : null,
                 ),
                 child: studentDP.isEmpty
@@ -301,7 +324,8 @@ class _StudentCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1),
+                      color: (isVerified ? Colors.green : Colors.orange)
+                          .withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(

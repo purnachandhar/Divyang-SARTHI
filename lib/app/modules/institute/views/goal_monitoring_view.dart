@@ -432,11 +432,25 @@ class GoalMonitoringView extends GetView<InstituteController> {
 
   Widget _buildGoalQuestionCard(dynamic questionData, int index) {
     final questionText = questionData['question']?.toString() ?? 'Unknown Question';
+    final List<dynamic> options = questionData['options'] ?? [];
     final answer = questionData['assessmentAnswer'];
     final goal = questionData['goalData'];
 
-    final grade = answer?['checkboxValue']?.toString() ?? '';
-    final score = answer?['options']?.toString() ?? '';
+    String grade = answer?['checkboxValue']?.toString() ?? '';
+    String score = answer?['options']?.toString() ?? '';
+
+    final selectedOpt = goal?['selectedOption']?.toString() ?? '';
+    if (selectedOpt.isNotEmpty) {
+      if (selectedOpt.contains(':')) {
+        final parts = selectedOpt.split(':');
+        grade = parts[0].trim();
+        score = parts.sublist(1).join(':').trim();
+      } else {
+        grade = selectedOpt.trim();
+        score = '';
+      }
+    }
+
     final goalType = goal?['goalType'] is List
         ? (goal?['goalType'] as List).join(', ')
         : (goal?['goalType']?.toString() ?? '');
@@ -488,6 +502,44 @@ class GoalMonitoringView extends GetView<InstituteController> {
               ],
             ),
           ),
+          if (options.isNotEmpty) ...[
+            Divider(height: 1, color: Colors.grey.shade100),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('OPTIONS',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
+                          color: AppTheme.textSecondary, letterSpacing: 0.8)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: options.map((opt) {
+                      final optStr = opt.toString();
+                      final isSelected = grade == optStr;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Text(optStr,
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected ? Colors.white : AppTheme.textSecondary)),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (hasGrade || hasScore || hasGoalType) ...[
             Divider(height: 1, color: Colors.grey.shade100),
             Padding(

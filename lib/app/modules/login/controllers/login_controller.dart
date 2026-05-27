@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/providers/api_provider.dart';
+import 'dart:convert';
 import '../../../utils/jwt_utils.dart';
-
 class LoginController extends GetxController {
   final ApiProvider _apiProvider = Get.put(ApiProvider());
   final phoneController = TextEditingController();
@@ -13,6 +13,20 @@ class LoginController extends GetxController {
   var isPasswordVisible = false.obs;
   var isOtpMode = false.obs;
   var isLoading = false.obs;
+  
+  // Captcha states
+  var captchaSvg = ''.obs;
+  var isMathCaptcha = false.obs;
+  var captchaVerified = false.obs;
+  var isFetchingCaptcha = false.obs;
+  String correctCaptchaAnswer = '';
+  var captchaId = ''.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    fetchVisualCaptcha();
+  }
 
   void togglePasswordVisibility() {
     isPasswordVisible.value = !isPasswordVisible.value;
@@ -106,6 +120,123 @@ class LoginController extends GetxController {
       'Redirecting to Parichay secure login...',
       snackPosition: SnackPosition.BOTTOM,
     );
+  }
+
+  // --- Captcha Methods ---
+
+  Future<void> fetchVisualCaptcha() async {
+    isFetchingCaptcha.value = true;
+    captchaVerified.value = false;
+    captchaController.clear();
+    try {
+      final response = await GetConnect().get('https://backend.divyangsarthi.in/recaptcha/visual');
+      if (response.statusCode == 200) {
+        final data = response.body;
+        if (data != null && data['success'] == true) {
+          captchaSvg.value = data['captchaSvg'] ?? '';
+          captchaId.value = data['captchaId'] ?? '';
+          _extractVisualAnswer(captchaSvg.value);
+        }
+      } else {
+        Get.snackbar("Error", "Failed to load visual captcha", snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Failed to load visual captcha: $e", snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isFetchingCaptcha.value = false;
+    }
+  }
+
+  Future<void> fetchMathCaptcha() async {
+    isFetchingCaptcha.value = true;
+    captchaVerified.value = false;
+    captchaController.clear();
+    try {
+      final response = await GetConnect().get('https://backend.divyangsarthi.in/recaptcha/math');
+      if (response.statusCode == 200) {
+        final data = response.body;
+        if (data != null && data['success'] == true) {
+          captchaSvg.value = data['questionSvg'] ?? '';
+          captchaId.value = data['captchaId'] ?? '';
+          _extractMathAnswer(data['question'] ?? '');
+        }
+      } else {
+        Get.snackbar("Error", "Failed to load math captcha", snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Failed to load math captcha: $e", snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isFetchingCaptcha.value = false;
+    }
+  }
+
+  void _extractVisualAnswer(String svg) {
+    final RegExp textRegExp = RegExp(r'<text[^>]*>([^<]+)</text>');
+    final Iterable<Match> matches = textRegExp.allMatches(svg);
+    String answer = '';
+    for (var match in matches) {
+      answer += match.group(1)?.trim() ?? '';
+    }
+    correctCaptchaAnswer = answer;
+  }
+
+  void _extractMathAnswer(String question) {
+    try {
+      final parts = question.split(' ');
+      if (parts.length == 3) {
+        final a = int.parse(parts[0]);
+        final op = parts[1];
+        final b = int.parse(parts[2]);
+        if (op == '+') correctCaptchaAnswer = (a + b).toString();
+        else if (op == '-') correctCaptchaAnswer = (a - b).toString();
+        else if (op == '*') correctCaptchaAnswer = (a * b).toString();
+        else if (op == '/') correctCaptchaAnswer = (a ~/ b).toString();
+        else correctCaptchaAnswer = '';
+      }
+    } catch (e) {
+      print("Math parse error: $e");
+      correctCaptchaAnswer = '';
+    }
+  }
+
+  void verifyCaptcha() {
+    if (captchaController.text.trim().isEmpty) {
+      Get.snackbar("Error", "Please enter captcha code", 
+        snackPosition: SnackPosition.BOTTOM, 
+        backgroundColor: Colors.red, 
+        colorText: Colors.white);
+      return;
+    }
+
+    // Case-insensitive validation for visual, exact for math
+    if (captchaController.text.trim().toLowerCase() == correctCaptchaAnswer.toLowerCase()) {
+      captchaVerified.value = true;
+      Get.snackbar("Success", "✓ Captcha verified successfully", 
+        snackPosition: SnackPosition.BOTTOM, 
+        backgroundColor: Colors.green, 
+        colorText: Colors.white);
+    } else {
+      captchaVerified.value = false;
+      Get.snackbar("Error", "Invalid captcha code. Please try again.", 
+        snackPosition: SnackPosition.BOTTOM, 
+        backgroundColor: Colors.red, 
+        colorText: Colors.white);
+      // Refresh captcha on failure
+      refreshCaptcha();
+    }
+  }
+
+  void refreshCaptcha() {
+    if (isMathCaptcha.value) {
+      fetchMathCaptcha();
+    } else {
+      fetchVisualCaptcha();
+    }
+  }
+
+  void toggleCaptchaType() {
+    isMathCaptcha.value = !isMathCaptcha.value;
+    refreshCaptcha();
   }
 
   @override

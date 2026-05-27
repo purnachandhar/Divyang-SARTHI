@@ -16,6 +16,25 @@ class InstituteProfessionalView extends GetView<InstituteController> {
       body: Column(
         children: [
           _buildHeader(),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              onChanged: (value) =>
+                  controller.educatorSearchQuery.value = value,
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                hintText: 'Search professional...',
+                hintStyle: TextStyle(color: Colors.grey),
+                border: InputBorder.none,
+                icon: Icon(Icons.search, color: Colors.black),
+              ),
+            ),
+          ),
           Expanded(
             child: ResponsiveLayout(
               mobile: _buildProfessionalList(isMobile: true),
@@ -44,47 +63,53 @@ class InstituteProfessionalView extends GetView<InstituteController> {
           bottomRight: Radius.circular(30),
         ),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Professionals',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Professionals',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Manage educators and experts in your institute',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Manage educators and experts in your institute',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Obx(() => Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${controller.educators.length} Members',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13),
+                    ),
+                  )),
+            ],
           ),
-          const SizedBox(width: 12),
-          Obx(() => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${controller.educators.length} Members',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13),
-                ),
-              )),
         ],
       ),
     );
@@ -96,7 +121,7 @@ class InstituteProfessionalView extends GetView<InstituteController> {
         return const Center(child: CircularProgressIndicator());
       }
 
-      if (controller.educators.isEmpty) {
+      if (controller.filteredEducators.isEmpty) {
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -120,20 +145,23 @@ class InstituteProfessionalView extends GetView<InstituteController> {
       }
 
       if (isMobile) {
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.educators.length,
-          itemBuilder: (context, index) {
-            final educator = controller.educators[index];
-            return _ProfessionalCard(
-              educator: educator,
-              onTap: () => controller
-                  .viewProfessionalDetail(_toStringMap(educator)),
-            );
-          },
+        return RefreshIndicator(
+          onRefresh: controller.fetchEducators,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: controller.filteredEducators.length,
+            itemBuilder: (context, index) {
+              final educator = controller.filteredEducators[index];
+              return _ProfessionalCard(
+                educator: educator,
+                onTap: () =>
+                    controller.viewProfessionalDetail(_toStringMap(educator)),
+              );
+            },
+          ),
         );
       } else {
-        final educators = controller.educators;
+        final educators = controller.filteredEducators;
         return Padding(
           padding: const EdgeInsets.all(24),
           child: AppTable(
@@ -154,14 +182,12 @@ class InstituteProfessionalView extends GetView<InstituteController> {
               final roles = educator['roles'] is List
                   ? (educator['roles'] as List).join(', ')
                   : (educator['roles'] ?? 'N/A').toString();
-              final designation =
-                  (educator['designation'] ?? '').toString();
+              final designation = (educator['designation'] ?? '').toString();
               final qualification =
                   (educator['qualification'] ?? '').toString();
               final email = (educator['email'] ?? '').toString();
               final mobile = (educator['mobile'] ?? '').toString();
-              final studentCount =
-                  (educator['studentCount'] ?? 0).toString();
+              final studentCount = (educator['studentCount'] ?? 0).toString();
               final isOnline = educator['isOnline'] == true;
 
               return DataRow(
@@ -176,8 +202,7 @@ class InstituteProfessionalView extends GetView<InstituteController> {
                         children: [
                           Text(fullName.isEmpty ? 'N/A' : fullName,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13)),
+                                  fontWeight: FontWeight.bold, fontSize: 13)),
                           Text(roles,
                               style: TextStyle(
                                   color: _roleColor(roles),
@@ -187,21 +212,18 @@ class InstituteProfessionalView extends GetView<InstituteController> {
                       ),
                     ],
                   )),
-                  DataCell(Text(
-                      designation.isEmpty ? roles : designation,
+                  DataCell(Text(designation.isEmpty ? roles : designation,
                       style: const TextStyle(fontSize: 12))),
-                  DataCell(Text(
-                      qualification.isEmpty ? 'N/A' : qualification,
+                  DataCell(Text(qualification.isEmpty ? 'N/A' : qualification,
                       style: const TextStyle(fontSize: 12))),
-                  DataCell(Text(
-                      email.isEmpty ? 'N/A' : email,
+                  DataCell(Text(email.isEmpty ? 'N/A' : email,
                       style: const TextStyle(fontSize: 12))),
-                  DataCell(Text(
-                      mobile.isEmpty ? 'N/A' : mobile,
+                  DataCell(Text(mobile.isEmpty ? 'N/A' : mobile,
                       style: const TextStyle(fontSize: 12))),
                   DataCell(Row(
                     children: [
-                      const Icon(Icons.people, size: 14, color: AppTheme.primaryColor),
+                      const Icon(Icons.people,
+                          size: 14, color: AppTheme.primaryColor),
                       const SizedBox(width: 4),
                       Text(studentCount,
                           style: const TextStyle(
@@ -209,8 +231,8 @@ class InstituteProfessionalView extends GetView<InstituteController> {
                     ],
                   )),
                   DataCell(Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isOnline
                           ? Colors.green.withOpacity(0.1)
@@ -450,20 +472,16 @@ class _ProfessionalCard extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   if (designation.isNotEmpty)
-                    _InfoChip(
-                        icon: Icons.work_outline, label: designation),
+                    _InfoChip(icon: Icons.work_outline, label: designation),
                   if (qualification.isNotEmpty)
                     _InfoChip(
                         icon: Icons.school_outlined, label: qualification),
                   if (email.isNotEmpty)
-                    _InfoChip(
-                        icon: Icons.email_outlined, label: email),
+                    _InfoChip(icon: Icons.email_outlined, label: email),
                   if (mobile.isNotEmpty)
-                    _InfoChip(
-                        icon: Icons.phone_outlined, label: mobile),
+                    _InfoChip(icon: Icons.phone_outlined, label: mobile),
                   if (address.isNotEmpty)
-                    _InfoChip(
-                        icon: Icons.location_on_outlined, label: address),
+                    _InfoChip(icon: Icons.location_on_outlined, label: address),
                 ],
               ),
             ],
