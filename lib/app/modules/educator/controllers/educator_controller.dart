@@ -43,7 +43,7 @@ class EducatorController extends GetxController {
   // IEP Assessment Screen state
   var selectedIepAssessmentStudentId = ''.obs;
   var selectedIepLevel = ''.obs;
-  
+
   // Goal Monitoring Screen state
   var selectedGoalMonitoringYearId = ''.obs;
   var selectedGoalMonitoringStudentId = ''.obs;
@@ -52,15 +52,18 @@ class EducatorController extends GetxController {
   var goalMonitoringDomains = <Map<String, dynamic>>[].obs;
   var goalMonitoringAnswers = <String, Map<String, dynamic>>{}.obs;
   var goalMonitoringRawData = <String, dynamic>{}.obs;
-  var goalMonitoringStatuses = <String, String>{}.obs; // entry, term1, term2 status
+  var goalMonitoringStatuses =
+      <String, String>{}.obs; // entry, term1, term2 status
   var allNiepidQuestions = <Map<String, dynamic>>[].obs;
-  var termQuestionsCache = <String, List<Map<String, dynamic>>>{}.obs; // 'term1', 'term2' -> domains
-  var goalMonitoringRawDataPerTerm = <String, Map<String, dynamic>>{}.obs; // 'entry', 'term1', 'term2' -> goals map
+  var termQuestionsCache =
+      <String, List<Map<String, dynamic>>>{}.obs; // 'term1', 'term2' -> domains
+  var goalMonitoringRawDataPerTerm = <String, Map<String, dynamic>>{}
+      .obs; // 'entry', 'term1', 'term2' -> goals map
   var isSavingGoalMonitoringDraft = false.obs;
   var isSubmittingGoalMonitoring = false.obs;
   var isGoalMonitoringDataLoaded = false.obs;
   var isGoalMonitoringReviewComplete = false.obs;
-  
+
   // Care Giver Meeting state
   var careGiverStudents = <dynamic>[].obs;
   var isLoadingCareGiverMeeting = false.obs;
@@ -101,7 +104,9 @@ class EducatorController extends GetxController {
       for (var q in qs) {
         final qId = q['_id']?.toString() ?? '';
         final ans = assessmentAnswers[qId];
-        if (ans != null && ans['mainOption'] != null && ans['mainOption'].toString().isNotEmpty) {
+        if (ans != null &&
+            ans['mainOption'] != null &&
+            ans['mainOption'].toString().isNotEmpty) {
           count++;
         }
       }
@@ -123,6 +128,7 @@ class EducatorController extends GetxController {
     }
     return count;
   }
+
   bool get isAllGoalMonitoringAnswered {
     if (goalMonitoringDomains.isEmpty) return false;
     for (var domain in goalMonitoringDomains) {
@@ -130,14 +136,16 @@ class EducatorController extends GetxController {
       for (var q in questions) {
         final qId = q['_id']?.toString() ?? '';
         final ans = goalMonitoringAnswers[qId];
-        if (ans == null || ans['mainOption'] == null || ans['mainOption'].toString().isEmpty) {
+        if (ans == null ||
+            ans['mainOption'] == null ||
+            ans['mainOption'].toString().isEmpty) {
           return false;
         }
       }
     }
     return true;
   }
-  
+
   bool get isAllIepQuestionsAnswered {
     if (assessmentDomains.isEmpty) return false;
     int totalQs = 0;
@@ -155,9 +163,9 @@ class EducatorController extends GetxController {
       int idx = 0;
       return niepidStudentAssessments.firstWhere((s) {
         final id = s['studentId']?.toString() ??
-                   s['id']?.toString() ??
-                   s['_id']?.toString() ??
-                   'index_$idx';
+            s['id']?.toString() ??
+            s['_id']?.toString() ??
+            'index_$idx';
         idx++;
         return id == selectedIepAssessmentStudentId.value;
       }, orElse: () => <String, dynamic>{}) as Map<String, dynamic>;
@@ -172,9 +180,9 @@ class EducatorController extends GetxController {
       int idx = 0;
       return niepidStudentAssessments.firstWhere((s) {
         final id = s['studentId']?.toString() ??
-                   s['id']?.toString() ??
-                   s['_id']?.toString() ??
-                   'index_$idx';
+            s['id']?.toString() ??
+            s['_id']?.toString() ??
+            'index_$idx';
         idx++;
         return id == selectedGoalMonitoringStudentId.value;
       }, orElse: () => <String, dynamic>{}) as Map<String, dynamic>;
@@ -193,18 +201,21 @@ class EducatorController extends GetxController {
           dob = DateTime.parse(dobString);
         } else {
           // Assuming DD-MM-YYYY
-          dob = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          dob = DateTime(
+              int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
         }
       } else if (dobString.contains('/')) {
         final parts = dobString.split('/');
-        dob = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+        dob = DateTime(
+            int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
       } else {
         return 0;
       }
-      
+
       final now = DateTime.now();
       int age = now.year - dob.year;
-      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      if (now.month < dob.month ||
+          (now.month == dob.month && now.day < dob.day)) {
         age--;
       }
       return age;
@@ -282,19 +293,20 @@ class EducatorController extends GetxController {
       debugPrint('Status Code: ${response.statusCode}');
       debugPrint('Body: ${response.body}');
       debugPrint('---------------------------');
-      
-      debugPrint('Educater organisation id: ${currentEducator.value?.organisation?.id}');
-      
+
+      debugPrint(
+          'Educater organisation id: ${currentEducator.value?.organisation?.id}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map<String, dynamic>) {
-          final model = EducatorModel.fromJson(response.body as Map<String, dynamic>);
+          final model =
+              EducatorModel.fromJson(response.body as Map<String, dynamic>);
           currentEducator.value = model;
 
           if (model.isNipiedDisha == true) {
             fetchNiepidDashboard();
             fetchNiepidStudentAssessments();
-            
+
             if (model.organisation?.id != null) {
               fetchIepAcademicYears(model.organisation!.id!);
             }
@@ -310,6 +322,11 @@ class EducatorController extends GetxController {
     }
   }
 
+  Future<void> refreshDashboardData() async {
+    await fetchCurrentUser();
+    await fetchStudents();
+  }
+
   Future<void> fetchNiepidDashboard() async {
     isLoadingDashboard.value = true;
     try {
@@ -317,7 +334,7 @@ class EducatorController extends GetxController {
       debugPrint('--- NIEPID Dashboard Response ---');
       debugPrint('Status: ${response.statusCode}');
       debugPrint('Body: ${response.body}');
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map) {
           niepidDashboardData.value = response.body as Map<String, dynamic>;
@@ -337,20 +354,20 @@ class EducatorController extends GetxController {
       debugPrint('--- NIEPID Student Assessments Response ---');
       debugPrint('Status: ${response.statusCode}');
       debugPrint('Body: ${response.body}');
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map) {
           if (response.body['data'] is List) {
             niepidStudentAssessments.value = response.body['data'];
           }
           if (response.body['studentscount'] != null) {
-            niepidStudentsCount.value = response.body['studentscount'] is int 
-                ? response.body['studentscount'] 
+            niepidStudentsCount.value = response.body['studentscount'] is int
+                ? response.body['studentscount']
                 : int.tryParse(response.body['studentscount'].toString()) ?? 0;
           }
           if (response.body['teacherscount'] != null) {
-            niepidTeachersCount.value = response.body['teacherscount'] is int 
-                ? response.body['teacherscount'] 
+            niepidTeachersCount.value = response.body['teacherscount'] is int
+                ? response.body['teacherscount']
                 : int.tryParse(response.body['teacherscount'].toString()) ?? 0;
           }
         }
@@ -367,11 +384,13 @@ class EducatorController extends GetxController {
       final response = await _apiProvider.getIepList(orgId);
       if (response.statusCode == 200 || response.statusCode == 201) {
         final List<dynamic> data = response.body is List ? response.body : [];
-        iepAcademicYears.value = data.map((e) => e as Map<String, dynamic>).toList();
-        
+        iepAcademicYears.value =
+            data.map((e) => e as Map<String, dynamic>).toList();
+
         if (iepAcademicYears.isNotEmpty) {
           if (selectedIepYearId.value.isEmpty) {
-            selectedIepYearId.value = iepAcademicYears.first['id']?.toString() ?? '';
+            selectedIepYearId.value =
+                iepAcademicYears.first['id']?.toString() ?? '';
           }
         }
       }
@@ -389,10 +408,12 @@ class EducatorController extends GetxController {
 
     isLoadingLearningResources.value = true;
     try {
-      final response = await _apiProvider.getStudentLearningResources(studentId);
+      final response =
+          await _apiProvider.getStudentLearningResources(studentId);
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map) {
-          learningResourcesData.value = Map<String, dynamic>.from(response.body);
+          learningResourcesData.value =
+              Map<String, dynamic>.from(response.body);
         } else {
           learningResourcesData.clear();
         }
@@ -460,21 +481,23 @@ class EducatorController extends GetxController {
   }
 
   Future<void> downloadStudentReport(
-    String studentId, 
-    String yearId, 
-    String term, 
+    String studentId,
+    String yearId,
+    String term,
     String title, {
     bool withGoalDetails = true,
     String goalType = 'Both',
     bool withRemarks = true,
   }) async {
     try {
-      Get.snackbar('Download', 'Fetching data for $title report...', snackPosition: SnackPosition.BOTTOM);
-      final response = await _apiProvider.getStudentOverview(studentId, yearId, term);
-      
+      Get.snackbar('Download', 'Fetching data for $title report...',
+          snackPosition: SnackPosition.BOTTOM);
+      final response =
+          await _apiProvider.getStudentOverview(studentId, yearId, term);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.body;
-        
+
         final pdf = pw.Document();
         pdf.addPage(
           pw.Page(
@@ -485,7 +508,7 @@ class EducatorController extends GetxController {
             },
           ),
         );
-        
+
         // Use app-scoped storage (no runtime permission needed on Android 11+)
         Directory? directory;
         if (Platform.isAndroid) {
@@ -493,24 +516,33 @@ class EducatorController extends GetxController {
         } else {
           directory = await getApplicationDocumentsDirectory();
         }
-        
+
         if (directory == null) {
           Get.snackbar('Error', 'Could not access storage directory');
           return;
         }
 
-        final fileName = 'Student_${term}_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final fileName =
+            'Student_${term}_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final path = '${directory.path}/$fileName';
         final file = File(path);
         await file.writeAsBytes(await pdf.save());
-        
+
         print('PDF saved to: $path');
-        Get.snackbar('Success', 'Report saved: $fileName', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
+        Get.snackbar('Success', 'Report saved: $fileName',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 4));
       } else {
-        Get.snackbar('Error', 'Failed to fetch data: ${response.statusCode}', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar('Error', 'Failed to fetch data: ${response.statusCode}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to generate PDF: $e', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar('Error', 'Failed to generate PDF: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
       print("Getting Error for PDF ${e}");
     }
   }
@@ -527,17 +559,21 @@ class EducatorController extends GetxController {
     // }
     if (studentDetails == null) {
       Get.snackbar('Error', 'No student selected.',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
       return;
     }
-    
+
     final studentId = studentDetails['studentId']?.toString() ??
-                   studentDetails['id']?.toString() ??
-                   studentDetails['_id']?.toString();
-                   
+        studentDetails['id']?.toString() ??
+        studentDetails['_id']?.toString();
+
     if (studentId == null || studentId.isEmpty) {
       Get.snackbar('Error', 'Invalid student ID',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
       return;
     }
 
@@ -547,7 +583,7 @@ class EducatorController extends GetxController {
     try {
       final response = await _apiProvider.getNiepidQuestions(orgId, studentId);
       final draftResponse = await _apiProvider.getStudentGoals(studentId);
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.body is Map && response.body['domains'] is List) {
           final List<dynamic> rawDomains = response.body['domains'];
@@ -564,19 +600,24 @@ class EducatorController extends GetxController {
             }
           }
 
-          allAssessmentDomains.value = rawDomains.map((e) => e as Map<String, dynamic>).toList();
+          allAssessmentDomains.value =
+              rawDomains.map((e) => e as Map<String, dynamic>).toList();
           _applyIepLevelFilter();
         } else {
           allAssessmentDomains.clear();
           assessmentDomains.clear();
         }
       } else {
-        Get.snackbar('Error', 'Failed to fetch questions. Status: ${response.statusCode}',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar('Error',
+            'Failed to fetch questions. Status: ${response.statusCode}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
 
       // Parse drafted goals using the actual JSON structure
       if (draftResponse.statusCode == 200 || draftResponse.statusCode == 201) {
+        print('All Student goles ${draftResponse.body}');
         try {
           final body = draftResponse.body;
           if (body is Map) {
@@ -615,12 +656,16 @@ class EducatorController extends GetxController {
                               mainOpt = optsList[optIndex].toString();
                             }
                           }
-                          
-                          String scoreOpt = ansItem['checkboxValue']?.toString() ?? '';
-                          
-                          final existing = assessmentAnswers[qId] ?? <String, dynamic>{};
-                          if (mainOpt.isNotEmpty) existing['mainOption'] = mainOpt;
-                          if (scoreOpt.isNotEmpty && scoreOpt != 'null') existing['score'] = scoreOpt;
+
+                          String scoreOpt =
+                              ansItem['checkboxValue']?.toString() ?? '';
+
+                          final existing =
+                              assessmentAnswers[qId] ?? <String, dynamic>{};
+                          if (mainOpt.isNotEmpty)
+                            existing['mainOption'] = mainOpt;
+                          if (scoreOpt.isNotEmpty && scoreOpt != 'null')
+                            existing['score'] = scoreOpt;
                           assessmentAnswers[qId] = existing;
                         }
                       }
@@ -641,38 +686,46 @@ class EducatorController extends GetxController {
                       for (var goalItem in termList) {
                         final qId = goalItem['questionId']?.toString();
                         if (goalItem['priority'] != null) {
-                          final p = int.tryParse(goalItem['priority'].toString());
+                          final p =
+                              int.tryParse(goalItem['priority'].toString());
                           if (p != null) usedPriorities.add(p);
                         }
-                        
-                          if (qId != null && qId.isNotEmpty && goalItem['isGoal'] == true) {
-                            final existing = assessmentAnswers[qId] ?? <String, dynamic>{};
-                            existing['isGoal'] = true;
-                            existing['goalId'] = goalItem['_id'];
-                            existing['priority'] = goalItem['priority'];
-                            assessmentAnswers[qId] = existing;
-                            
-                            // Load remarks if exists
-                            if (goalItem['remarks'] != null && goalItem['remarks'].toString().isNotEmpty && goalItem['remarks'].toString() != 'null') {
-                              goalRemarks[qId] = goalItem['remarks'].toString();
-                            }
+
+                        if (qId != null &&
+                            qId.isNotEmpty &&
+                            goalItem['isGoal'] == true) {
+                          final existing =
+                              assessmentAnswers[qId] ?? <String, dynamic>{};
+                          existing['isGoal'] = true;
+                          existing['goalId'] = goalItem['_id'];
+                          existing['priority'] = goalItem['priority'];
+                          assessmentAnswers[qId] = existing;
+
+                          // Load remarks if exists
+                          if (goalItem['remarks'] != null &&
+                              goalItem['remarks'].toString().isNotEmpty &&
+                              goalItem['remarks'].toString() != 'null') {
+                            goalRemarks[qId] = goalItem['remarks'].toString();
                           }
+                        }
                       }
                     }
                   }
                 }
               }
             }
-            debugPrint('DEBUG: Pre-filled answers mapped: ${assessmentAnswers.length}');
+            debugPrint(
+                'DEBUG: Pre-filled answers mapped: ${assessmentAnswers.length}');
           }
         } catch (e) {
           debugPrint('Error parsing draft goals: $e');
         }
       }
-      
     } catch (e) {
       Get.snackbar('Error', 'Could not fetch questions: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoadingQuestions.value = false;
     }
@@ -684,7 +737,7 @@ class EducatorController extends GetxController {
     ever(selectedGoalMonitoringTerm, (_) => _filterGoalMonitoringData());
     ever(selectedIepLevel, (_) => _applyIepLevelFilter());
     ever(selectedIepAssessmentStudentId, (_) => autoSetIepLevel());
-    
+
     // Reset loaded state when student or year changes
     ever(selectedGoalMonitoringStudentId, (_) {
       isGoalMonitoringDataLoaded.value = false;
@@ -698,7 +751,8 @@ class EducatorController extends GetxController {
       isGoalMonitoringReviewComplete.value = false;
       _filterGoalMonitoringData();
     });
-    ever(selectedLearningResourcesStudentId, (_) => fetchStudentLearningResources());
+    ever(selectedLearningResourcesStudentId,
+        (_) => fetchStudentLearningResources());
   }
 
   void autoSetIepLevel() {
@@ -708,9 +762,9 @@ class EducatorController extends GetxController {
       return;
     }
     final dob = details['dateOfBirth']?.toString() ??
-                details['dob']?.toString() ??
-                details['date_of_birth']?.toString() ??
-                details['DOB']?.toString();
+        details['dob']?.toString() ??
+        details['date_of_birth']?.toString() ??
+        details['DOB']?.toString();
     final age = calculateAge(dob);
     debugPrint('DEBUG autoSetIepLevel: dob=$dob age=$age');
     if (age >= 3 && age < 14) {
@@ -732,7 +786,7 @@ class EducatorController extends GetxController {
       final cachedDomains = termQuestionsCache[termKey];
       if (cachedDomains != null && cachedDomains.isNotEmpty) {
         goalMonitoringAnswers.clear();
-        
+
         // 1. Get Baseline (entry) goals
         final baselineRaw = goalMonitoringRawDataPerTerm['entry'];
         if (baselineRaw != null && baselineRaw[yearId] is Map) {
@@ -741,7 +795,8 @@ class EducatorController extends GetxController {
             for (var goalItem in entryList) {
               final qId = goalItem['questionId']?.toString();
               if (qId != null && qId.isNotEmpty) {
-                final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
+                final selectedOpt =
+                    goalItem['selectedOption']?.toString() ?? '';
                 String grade = selectedOpt;
                 String score = '';
                 if (selectedOpt.contains(':')) {
@@ -768,8 +823,11 @@ class EducatorController extends GetxController {
           if (termList != null && termList.isNotEmpty) {
             for (var goalItem in termList) {
               final qId = goalItem['questionId']?.toString();
-              if (qId != null && qId.isNotEmpty && goalMonitoringAnswers.containsKey(qId)) {
-                final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
+              if (qId != null &&
+                  qId.isNotEmpty &&
+                  goalMonitoringAnswers.containsKey(qId)) {
+                final selectedOpt =
+                    goalItem['selectedOption']?.toString() ?? '';
                 String grade = selectedOpt;
                 String score = '';
                 if (selectedOpt.contains(':')) {
@@ -780,15 +838,19 @@ class EducatorController extends GetxController {
                 final currentAns = goalMonitoringAnswers[qId] ?? {};
                 currentAns['mainOption'] = grade;
                 currentAns['score'] = score;
-                if (goalItem['goalType'] != null) currentAns['goalType'] = goalItem['goalType'];
-                if (goalItem['remarks'] != null) currentAns['remarks'] = goalItem['remarks'];
+                if (goalItem['goalType'] != null)
+                  currentAns['goalType'] = goalItem['goalType'];
+                if (goalItem['remarks'] != null)
+                  currentAns['remarks'] = goalItem['remarks'];
                 goalMonitoringAnswers[qId] = currentAns;
               }
             }
           }
         }
-        goalMonitoringDomains.value = List<Map<String, dynamic>>.from(cachedDomains);
-        debugPrint('DEBUG: Showing ${cachedDomains.length} domains for $termKey from cache');
+        goalMonitoringDomains.value =
+            List<Map<String, dynamic>>.from(cachedDomains);
+        debugPrint(
+            'DEBUG: Showing ${cachedDomains.length} domains for $termKey from cache');
       } else {
         goalMonitoringDomains.clear();
         debugPrint('DEBUG: No cached questions for $termKey yet');
@@ -802,7 +864,7 @@ class EducatorController extends GetxController {
 
     goalMonitoringAnswers.clear();
     final Set<String> goalQuestionIds = {};
-    
+
     final yearGoals = rawData[yearId];
     if (yearGoals is Map) {
       final entryList = yearGoals['entry'] as List?;
@@ -811,7 +873,7 @@ class EducatorController extends GetxController {
           final qId = goalItem['questionId']?.toString();
           if (qId != null && qId.isNotEmpty) {
             goalQuestionIds.add(qId);
-            
+
             // Extract previously monitored values if they exist in the CURRENT term's goals list
             final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
             String grade = selectedOpt;
@@ -821,7 +883,7 @@ class EducatorController extends GetxController {
               grade = parts[0].trim();
               score = parts.sublist(1).join(':').trim();
             }
-            
+
             goalMonitoringAnswers[qId] = {
               'mainOption': grade,
               'score': score,
@@ -839,7 +901,9 @@ class EducatorController extends GetxController {
         if (currentTermList != null && currentTermList.isNotEmpty) {
           for (var goalItem in currentTermList) {
             final qId = goalItem['questionId']?.toString();
-            if (qId != null && qId.isNotEmpty && goalQuestionIds.contains(qId)) {
+            if (qId != null &&
+                qId.isNotEmpty &&
+                goalQuestionIds.contains(qId)) {
               final selectedOpt = goalItem['selectedOption']?.toString() ?? '';
               String grade = selectedOpt;
               String score = '';
@@ -848,20 +912,20 @@ class EducatorController extends GetxController {
                 grade = parts[0].trim();
                 score = parts.sublist(1).join(':').trim();
               }
-              
+
               final currentAns = goalMonitoringAnswers[qId] ?? {};
               currentAns['mainOption'] = grade;
               currentAns['score'] = score;
-              if (goalItem['goalType'] != null) currentAns['goalType'] = goalItem['goalType'];
-              if (goalItem['remarks'] != null) currentAns['remarks'] = goalItem['remarks'];
+              if (goalItem['goalType'] != null)
+                currentAns['goalType'] = goalItem['goalType'];
+              if (goalItem['remarks'] != null)
+                currentAns['remarks'] = goalItem['remarks'];
               goalMonitoringAnswers[qId] = currentAns;
             }
           }
         }
       }
     }
-
-
 
     final List<Map<String, dynamic>> filteredDomains = [];
     final Set<String> processedGoalIds = {};
@@ -878,14 +942,16 @@ class EducatorController extends GetxController {
       }).toList();
 
       if (filteredQuestions.isNotEmpty) {
-        final Map<String, dynamic> newDomain = Map<String, dynamic>.from(domain);
+        final Map<String, dynamic> newDomain =
+            Map<String, dynamic>.from(domain);
         newDomain['questions'] = filteredQuestions;
         newDomain['questionsCount'] = filteredQuestions.length;
         filteredDomains.add(newDomain);
       }
     }
 
-    final remainingGoalIds = goalQuestionIds.where((id) => !processedGoalIds.contains(id)).toList();
+    final remainingGoalIds =
+        goalQuestionIds.where((id) => !processedGoalIds.contains(id)).toList();
     if (remainingGoalIds.isNotEmpty) {
       final List<dynamic> otherQuestions = [];
       for (var qId in remainingGoalIds) {
@@ -905,15 +971,28 @@ class EducatorController extends GetxController {
     }
 
     goalMonitoringDomains.value = filteredDomains;
-    debugPrint('DEBUG: Filtered ${goalMonitoringAnswers.length} goals for term: $termKey');
+    debugPrint(
+        'DEBUG: Filtered ${goalMonitoringAnswers.length} goals for term: $termKey');
   }
 
   // All candidate field names the API might use for age group, in priority order.
   static const _ageGroupFields = [
-    'ageGroup', 'age_group', 'agegroup', 'AgeGroup',
-    'level', 'Level', 'type', 'Type',
-    'category', 'Category', 'group', 'Group',
-    'standard', 'Standard', 'ageRange', 'age_range',
+    'ageGroup',
+    'age_group',
+    'agegroup',
+    'AgeGroup',
+    'level',
+    'Level',
+    'type',
+    'Type',
+    'category',
+    'Category',
+    'group',
+    'Group',
+    'standard',
+    'Standard',
+    'ageRange',
+    'age_range',
   ];
 
   /// Returns the first non-empty age-group value found in [obj], or ''.
@@ -948,7 +1027,9 @@ class EducatorController extends GetxController {
     }
 
     // "3-14 years" → "3-14"
-    final rangeOnly = level.replaceAll(RegExp(r'\s*years\s*', caseSensitive: false), '').trim();
+    final rangeOnly = level
+        .replaceAll(RegExp(r'\s*years\s*', caseSensitive: false), '')
+        .trim();
 
     // ── Auto-detect: scan questions to find which field is actually populated ──
     String? detectedField;
@@ -967,11 +1048,13 @@ class EducatorController extends GetxController {
       }
     }
 
-    debugPrint('DEBUG IEP filter: level="$level" rangeOnly="$rangeOnly" detectedField=$detectedField');
+    debugPrint(
+        'DEBUG IEP filter: level="$level" rangeOnly="$rangeOnly" detectedField=$detectedField');
 
     // If the API response has no age-group field at all, show everything.
     if (detectedField == null) {
-      debugPrint('DEBUG IEP filter: no ageGroup field found — showing all questions');
+      debugPrint(
+          'DEBUG IEP filter: no ageGroup field found — showing all questions');
       assessmentDomains.value = List.from(allAssessmentDomains);
       return;
     }
@@ -979,7 +1062,8 @@ class EducatorController extends GetxController {
     final filtered = <Map<String, dynamic>>[];
     for (final domain in allAssessmentDomains) {
       final domainAg = _ageGroupOf(domain);
-      if (domainAg.isNotEmpty && !_ageGroupMatches(domainAg, rangeOnly)) continue;
+      if (domainAg.isNotEmpty && !_ageGroupMatches(domainAg, rangeOnly))
+        continue;
 
       final allQs = (domain['questions'] as List? ?? []);
       final filteredQs = allQs.where((q) {
@@ -1016,18 +1100,25 @@ class EducatorController extends GetxController {
     termQuestionsCache.clear();
     goalMonitoringRawDataPerTerm.clear();
     goalMonitoringStatuses.clear();
-    
+
     try {
       // 1. Fetch Baseline (entry)
-      final baselineQsRes = await _apiProvider.getNiepidQuestions(orgId, studentId);
+      final baselineQsRes =
+          await _apiProvider.getNiepidQuestions(orgId, studentId);
       if (baselineQsRes.statusCode == 200 || baselineQsRes.statusCode == 201) {
-        allNiepidQuestions.value = (baselineQsRes.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
-        
-        final baselineDataRes = await _apiProvider.getGoalMonitoringTermData(studentId, yearId, 'entry');
-        if (baselineDataRes.statusCode == 200 || baselineDataRes.statusCode == 201) {
+        allNiepidQuestions.value = (baselineQsRes.body['domains'] as List)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
+
+        final baselineDataRes = await _apiProvider.getGoalMonitoringTermData(
+            studentId, yearId, 'entry');
+        if (baselineDataRes.statusCode == 200 ||
+            baselineDataRes.statusCode == 201) {
           final body = baselineDataRes.body;
           if (body is Map) {
-            if (body['goals'] is Map) goalMonitoringRawDataPerTerm['entry'] = Map<String, dynamic>.from(body['goals']);
+            if (body['goals'] is Map)
+              goalMonitoringRawDataPerTerm['entry'] =
+                  Map<String, dynamic>.from(body['goals']);
             if (body['status'] is Map) _parseStatuses(body['status'], yearId);
           }
         }
@@ -1035,15 +1126,21 @@ class EducatorController extends GetxController {
 
       // 2. If Baseline is Approved, fetch Term 1
       if (isTermTabEnabled('term1')) {
-        final t1QsRes = await _apiProvider.getTermQuestions(orgId, studentId, yearId, 'term1');
+        final t1QsRes = await _apiProvider.getTermQuestions(
+            orgId, studentId, yearId, 'term1');
         if (t1QsRes.statusCode == 200 || t1QsRes.statusCode == 201) {
-          termQuestionsCache['term1'] = (t1QsRes.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
-          
-          final t1DataRes = await _apiProvider.getGoalMonitoringTermData(studentId, yearId, 'term1');
+          termQuestionsCache['term1'] = (t1QsRes.body['domains'] as List)
+              .map((e) => e as Map<String, dynamic>)
+              .toList();
+
+          final t1DataRes = await _apiProvider.getGoalMonitoringTermData(
+              studentId, yearId, 'term1');
           if (t1DataRes.statusCode == 200 || t1DataRes.statusCode == 201) {
             final body = t1DataRes.body;
             if (body is Map) {
-              if (body['goals'] is Map) goalMonitoringRawDataPerTerm['term1'] = Map<String, dynamic>.from(body['goals']);
+              if (body['goals'] is Map)
+                goalMonitoringRawDataPerTerm['term1'] =
+                    Map<String, dynamic>.from(body['goals']);
               if (body['status'] is Map) _parseStatuses(body['status'], yearId);
             }
           }
@@ -1052,15 +1149,21 @@ class EducatorController extends GetxController {
 
       // 3. If Term 1 is Approved, fetch Term 2
       if (isTermTabEnabled('term2')) {
-        final t2QsRes = await _apiProvider.getTermQuestions(orgId, studentId, yearId, 'term2');
+        final t2QsRes = await _apiProvider.getTermQuestions(
+            orgId, studentId, yearId, 'term2');
         if (t2QsRes.statusCode == 200 || t2QsRes.statusCode == 201) {
-          termQuestionsCache['term2'] = (t2QsRes.body['domains'] as List).map((e) => e as Map<String, dynamic>).toList();
-          
-          final t2DataRes = await _apiProvider.getGoalMonitoringTermData(studentId, yearId, 'term2');
+          termQuestionsCache['term2'] = (t2QsRes.body['domains'] as List)
+              .map((e) => e as Map<String, dynamic>)
+              .toList();
+
+          final t2DataRes = await _apiProvider.getGoalMonitoringTermData(
+              studentId, yearId, 'term2');
           if (t2DataRes.statusCode == 200 || t2DataRes.statusCode == 201) {
             final body = t2DataRes.body;
             if (body is Map) {
-              if (body['goals'] is Map) goalMonitoringRawDataPerTerm['term2'] = Map<String, dynamic>.from(body['goals']);
+              if (body['goals'] is Map)
+                goalMonitoringRawDataPerTerm['term2'] =
+                    Map<String, dynamic>.from(body['goals']);
               if (body['status'] is Map) _parseStatuses(body['status'], yearId);
             }
           }
@@ -1087,27 +1190,39 @@ class EducatorController extends GetxController {
         debugPrint('DEBUG _parseStatuses: Using FLAT status map');
       } else if (statusMap[yearId] is Map) {
         actualStatus = Map<String, dynamic>.from(statusMap[yearId]);
-        debugPrint('DEBUG _parseStatuses: Using NESTED status map for year $yearId');
+        debugPrint(
+            'DEBUG _parseStatuses: Using NESTED status map for year $yearId');
       } else {
-        debugPrint('DEBUG _parseStatuses: No matching status format found. Keys: ${statusMap.keys}');
+        debugPrint(
+            'DEBUG _parseStatuses: No matching status format found. Keys: ${statusMap.keys}');
         return;
       }
 
       goalMonitoringStatuses.assignAll({
-        'entry': actualStatus['entry']?.toString() ?? goalMonitoringStatuses['entry'] ?? 'N/A',
-        'term1': actualStatus['term1']?.toString() ?? goalMonitoringStatuses['term1'] ?? 'N/A',
-        'term2': actualStatus['term2']?.toString() ?? goalMonitoringStatuses['term2'] ?? 'N/A',
+        'entry': actualStatus['entry']?.toString() ??
+            goalMonitoringStatuses['entry'] ??
+            'N/A',
+        'term1': actualStatus['term1']?.toString() ??
+            goalMonitoringStatuses['term1'] ??
+            'N/A',
+        'term2': actualStatus['term2']?.toString() ??
+            goalMonitoringStatuses['term2'] ??
+            'N/A',
       });
-      debugPrint('DEBUG _parseStatuses: Updated goalMonitoringStatuses to $goalMonitoringStatuses');
+      debugPrint(
+          'DEBUG _parseStatuses: Updated goalMonitoringStatuses to $goalMonitoringStatuses');
     }
   }
 
   bool isTermTabEnabled(String termKey) {
     if (termKey == 'entry') return true;
-    final entryStatus = (goalMonitoringStatuses['entry'] ?? '').toString().toLowerCase().trim();
-    final term1Status = (goalMonitoringStatuses['term1'] ?? '').toString().toLowerCase().trim();
-    
-    debugPrint('DEBUG isTermTabEnabled: term=$termKey entryStatus="$entryStatus" term1Status="$term1Status"');
+    final entryStatus =
+        (goalMonitoringStatuses['entry'] ?? '').toString().toLowerCase().trim();
+    final term1Status =
+        (goalMonitoringStatuses['term1'] ?? '').toString().toLowerCase().trim();
+
+    debugPrint(
+        'DEBUG isTermTabEnabled: term=$termKey entryStatus="$entryStatus" term1Status="$term1Status"');
 
     if (termKey == 'term1') {
       final canEnable = entryStatus.contains('approve');
@@ -1125,26 +1240,37 @@ class EducatorController extends GetxController {
   Future<void> saveDraft() async {
     final studentDetails = selectedIepStudentDetails;
     if (studentDetails == null) {
-      Get.snackbar('Error', 'No student selected', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar('Error', 'No student selected',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
       return;
     }
-    
+
     final studentId = studentDetails['studentId']?.toString() ??
-                   studentDetails['id']?.toString() ??
-                   studentDetails['_id']?.toString();
-                   
+        studentDetails['id']?.toString() ??
+        studentDetails['_id']?.toString();
+
     if (studentId == null || studentId.isEmpty) {
-      Get.snackbar('Error', 'Invalid student ID', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar('Error', 'Invalid student ID',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
       return;
     }
 
     if (assessmentAnswers.isEmpty) {
-      Get.snackbar('Warning', 'No assessment answers to save.', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      Get.snackbar('Warning', 'No assessment answers to save.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white);
       return;
     }
 
     // Use the actual academic year ID as the year field and as keys in the payload
-    final String yearKey = selectedIepYearId.value.isNotEmpty ? selectedIepYearId.value : "unknown_year";
+    final String yearKey = selectedIepYearId.value.isNotEmpty
+        ? selectedIepYearId.value
+        : "unknown_year";
 
     final List<Map<String, dynamic>> allAnswersList = [];
 
@@ -1162,7 +1288,8 @@ class EducatorController extends GetxController {
 
         final mainOptionStr = ans['mainOption']?.toString();
         if (mainOptionStr != null && mainOptionStr.isNotEmpty) {
-          int optIndex = optionsList.indexWhere((o) => o.toString() == mainOptionStr);
+          int optIndex =
+              optionsList.indexWhere((o) => o.toString() == mainOptionStr);
           if (optIndex == -1) optIndex = 0;
 
           final scoreOpt = ans['score']?.toString();
@@ -1182,14 +1309,15 @@ class EducatorController extends GetxController {
 
     final Map<String, dynamic> goalsPayload = {};
     final List<Map<String, dynamic>> entryGoals = [];
-    
+
     for (var entry in assessmentAnswers.entries) {
       if (entry.value['isGoal'] == true) {
         String qText = '';
         // Find question text for goalName
         for (var d in allAssessmentDomains) {
           final qs = d['questions'] as List?;
-          final q = qs?.firstWhere((q) => q['_id']?.toString() == entry.key, orElse: () => null);
+          final q = qs?.firstWhere((q) => q['_id']?.toString() == entry.key,
+              orElse: () => null);
           if (q != null) {
             qText = q['question']?.toString() ?? '';
             break;
@@ -1206,23 +1334,15 @@ class EducatorController extends GetxController {
         });
       }
     }
-    
-    goalsPayload[yearKey] = {
-      "entry": entryGoals,
-      "term1": [],
-      "term2": []
-    };
+
+    goalsPayload[yearKey] = {"entry": entryGoals, "term1": [], "term2": []};
 
     final payload = {
       "studentId": studentId,
       "year": yearKey,
       "goals": goalsPayload,
       "answer": {
-        yearKey: {
-          "entry": allAnswersList,
-          "term1": [],
-          "term2": []
-        }
+        yearKey: {"entry": allAnswersList, "term1": [], "term2": []}
       },
       "activities": [],
     };
@@ -1232,22 +1352,31 @@ class EducatorController extends GetxController {
       final jsonPayload = jsonEncode(payload);
       debugPrint('DEBUG saveDraft payload: $jsonPayload');
       final response = await _apiProvider.saveStudentGoals(payload);
-      debugPrint('DEBUG saveDraft response: ${response.statusCode} — ${response.body}');
+      debugPrint(
+          'DEBUG saveDraft response: ${response.statusCode} — ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
         Get.snackbar('Success', 'Assessment saved as draft successfully!',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
         await fetchAssessmentQuestions();
       } else {
         final apiMsg = response.body is Map
-            ? (response.body['message'] ?? response.body['error'] ?? response.body.toString())
+            ? (response.body['message'] ??
+                response.body['error'] ??
+                response.body.toString())
             : response.body?.toString() ?? 'Unknown error';
         Get.snackbar('Error (${response.statusCode})', apiMsg.toString(),
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
             duration: const Duration(seconds: 6));
       }
     } catch (e) {
       Get.snackbar('Error', 'Could not save draft: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isSavingDraft.value = false;
     }
@@ -1285,11 +1414,14 @@ class EducatorController extends GetxController {
 
   void toggleGoal(String questionId) {
     final current = assessmentAnswers[questionId] ?? <String, dynamic>{};
-    
+
     // Rule: Independent selection cannot be a goal
     if (current['mainOption'] == 'Independent') {
-      Get.snackbar('Goal Selection', 'Tasks marked as "Independent" cannot be set as goals.',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      Get.snackbar('Goal Selection',
+          'Tasks marked as "Independent" cannot be set as goals.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white);
       return;
     }
 
@@ -1303,18 +1435,21 @@ class EducatorController extends GetxController {
   }
 
   void showGoalDetailsDialog(String questionId) {
-    final remarkController = TextEditingController(text: goalRemarks[questionId] ?? '');
+    final remarkController =
+        TextEditingController(text: goalRemarks[questionId] ?? '');
     final charCount = (remarkController.text.length).obs;
 
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Goal Details', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+        title: const Text('Goal Details',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add details :', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('Add details :',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 12),
             TextField(
               controller: remarkController,
@@ -1323,18 +1458,22 @@ class EducatorController extends GetxController {
               onChanged: (val) => charCount.value = val.length,
               decoration: InputDecoration(
                 hintText: 'Enter your remark here...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 counterText: '',
               ),
             ),
             const SizedBox(height: 4),
             Obx(() => Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '${charCount.value} / (max-300)',
-                style: TextStyle(fontSize: 11, color: charCount.value > 300 ? Colors.red : Colors.grey),
-              ),
-            )),
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '${charCount.value} / (max-300)',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color:
+                            charCount.value > 300 ? Colors.red : Colors.grey),
+                  ),
+                )),
           ],
         ),
         actions: [
@@ -1346,12 +1485,15 @@ class EducatorController extends GetxController {
             onPressed: () {
               goalRemarks[questionId] = remarkController.text;
               Get.back();
-              Get.snackbar('Success', 'Goal details updated', 
-                snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+              Get.snackbar('Success', 'Goal details updated',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.green,
+                  colorText: Colors.white);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Submit', style: TextStyle(color: Colors.white)),
           ),
@@ -1359,12 +1501,12 @@ class EducatorController extends GetxController {
       ),
     );
   }
-  
+
   Map<String, String> getGoalRemarksFromAllTerms(String questionId) {
     final Map<String, String> remarks = {};
     final yearId = selectedGoalMonitoringYearId.value;
     final terms = ['entry', 'term1', 'term2'];
-    
+
     for (var term in terms) {
       final rawData = goalMonitoringRawDataPerTerm[term];
       if (rawData != null && rawData[yearId] is Map) {
@@ -1387,11 +1529,12 @@ class EducatorController extends GetxController {
 
   void showGoalMonitoringRemarksDialog(String questionId, String questionText) {
     final currentTerm = selectedGoalMonitoringTerm.value;
-    final termStatus = (goalMonitoringStatuses[currentTerm] ?? '').toLowerCase();
+    final termStatus =
+        (goalMonitoringStatuses[currentTerm] ?? '').toLowerCase();
     final isPending = termStatus == 'pending' || termStatus == 'rework';
-    
+
     final allRemarks = getGoalRemarksFromAllTerms(questionId);
-    
+
     final List<String> allowedTerms = [];
     if (currentTerm == 'entry') {
       allowedTerms.add('entry');
@@ -1400,18 +1543,20 @@ class EducatorController extends GetxController {
     } else if (currentTerm == 'term2') {
       allowedTerms.addAll(['entry', 'term1', 'term2']);
     }
-    
+
     // Get current remark from local edits if any, otherwise from allRemarks
     final currentAns = goalMonitoringAnswers[questionId] ?? {};
-    final localRemark = currentAns['remarks']?.toString() ?? allRemarks[currentTerm] ?? '';
-    
+    final localRemark =
+        currentAns['remarks']?.toString() ?? allRemarks[currentTerm] ?? '';
+
     final remarkController = TextEditingController(text: localRemark);
     final charCount = (remarkController.text.length).obs;
 
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Goal Details', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+        title: const Text('Goal Details',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -1419,17 +1564,24 @@ class EducatorController extends GetxController {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(questionText, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(questionText,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 16),
-                
                 ...allowedTerms.map((term) {
-                  String title = term == 'entry' ? 'Baseline Goals' : (term == 'term1' ? 'Term 1 Goals' : 'Term 2 Goals');
-                  
+                  String title = term == 'entry'
+                      ? 'Baseline Goals'
+                      : (term == 'term1' ? 'Term 1 Goals' : 'Term 2 Goals');
+
                   if (term == currentTerm && isPending) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.blue)),
+                        Text(title,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: Colors.blue)),
                         const SizedBox(height: 8),
                         TextField(
                           controller: remarkController,
@@ -1438,23 +1590,28 @@ class EducatorController extends GetxController {
                           onChanged: (val) => charCount.value = val.length,
                           decoration: InputDecoration(
                             hintText: 'Enter goal details here...',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             counterText: '',
                           ),
                         ),
                         const SizedBox(height: 4),
                         Obx(() => Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            '${charCount.value} / (max-300)',
-                            style: TextStyle(fontSize: 11, color: charCount.value > 300 ? Colors.red : Colors.grey),
-                          ),
-                        )),
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                '${charCount.value} / (max-300)',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: charCount.value > 300
+                                        ? Colors.red
+                                        : Colors.grey),
+                              ),
+                            )),
                         const SizedBox(height: 12),
                       ],
                     );
                   }
-                  
+
                   String remark = allRemarks[term] ?? '';
                   if (term == currentTerm) {
                     remark = currentAns['remarks']?.toString() ?? remark;
@@ -1476,9 +1633,18 @@ class EducatorController extends GetxController {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue)),
+                        Text(title,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue)),
                         const SizedBox(height: 6),
-                        Text(remark, style: TextStyle(fontSize: 13, color: remark == 'No goal details available.' ? Colors.grey : Colors.black87)),
+                        Text(remark,
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: remark == 'No goal details available.'
+                                    ? Colors.grey
+                                    : Colors.black87)),
                       ],
                     ),
                   );
@@ -1495,16 +1661,20 @@ class EducatorController extends GetxController {
           if (isPending)
             ElevatedButton(
               onPressed: () {
-                final ans = Map<String, dynamic>.from(goalMonitoringAnswers[questionId] ?? {});
+                final ans = Map<String, dynamic>.from(
+                    goalMonitoringAnswers[questionId] ?? {});
                 ans['remarks'] = remarkController.text;
                 goalMonitoringAnswers[questionId] = ans;
                 Get.back();
-                Get.snackbar('Success', 'Goal details updated', 
-                  snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+                Get.snackbar('Success', 'Goal details updated',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.green,
+                    colorText: Colors.white);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Save', style: TextStyle(color: Colors.white)),
             ),
@@ -1531,7 +1701,8 @@ class EducatorController extends GetxController {
         // Find question text from domains
         for (var d in allAssessmentDomains) {
           final qs = d['questions'] as List?;
-          final q = qs?.firstWhere((q) => q['_id']?.toString() == entry.key, orElse: () => null);
+          final q = qs?.firstWhere((q) => q['_id']?.toString() == entry.key,
+              orElse: () => null);
           if (q != null) {
             qText = q['question']?.toString() ?? qText;
             break;
@@ -1546,8 +1717,10 @@ class EducatorController extends GetxController {
     }
 
     if (goalsToReview.isEmpty) {
-      Get.snackbar('Review', 'No goals selected to review.', 
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+      Get.snackbar('Review', 'No goals selected to review.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white);
       return;
     }
 
@@ -1562,13 +1735,18 @@ class EducatorController extends GetxController {
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
             gradient: LinearGradient(colors: [Colors.blue, Color(0xFF64B5F6)]),
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
           ),
           child: const Row(
             children: [
               Icon(Icons.rate_review, color: Colors.white),
               SizedBox(width: 12),
-              Text('Review Goals', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Review Goals',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -1579,7 +1757,8 @@ class EducatorController extends GetxController {
             children: [
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Please verify the goals identified from this assessment.',
+                child: Text(
+                    'Please verify the goals identified from this assessment.',
                     style: TextStyle(fontSize: 13, color: Colors.grey)),
               ),
               ConstrainedBox(
@@ -1591,50 +1770,69 @@ class EducatorController extends GetxController {
                   itemBuilder: (context, index) {
                     final goal = goalsToReview[index];
                     final qId = goal['id'];
-                    
+
                     return Obx(() {
                       final currentData = assessmentAnswers[qId] ?? {};
                       final gType = currentData['goalType'] ?? 'School';
-                      
+
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(goal['question'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            Text(goal['question'],
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 14)),
                             const SizedBox(height: 8),
                             GestureDetector(
                               onTap: () => toggleGoalType(qId),
                               child: Row(
                                 children: [
-                                  const Text('Goal Type: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  const Text('Goal Type: ',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey)),
                                   const SizedBox(width: 4),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: gType == 'School' ? Colors.blue.shade50 : Colors.green.shade50,
+                                      color: gType == 'School'
+                                          ? Colors.blue.shade50
+                                          : Colors.green.shade50,
                                       borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: gType == 'School' ? Colors.blue.shade200 : Colors.green.shade200),
+                                      border: Border.all(
+                                          color: gType == 'School'
+                                              ? Colors.blue.shade200
+                                              : Colors.green.shade200),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
-                                          gType == 'School' ? Icons.school : Icons.home,
+                                          gType == 'School'
+                                              ? Icons.school
+                                              : Icons.home,
                                           size: 12,
-                                          color: gType == 'School' ? Colors.blue : Colors.green.shade800,
+                                          color: gType == 'School'
+                                              ? Colors.blue
+                                              : Colors.green.shade800,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          gType == 'School' ? 'School Goal' : 'Home Goal',
+                                          gType == 'School'
+                                              ? 'School Goal'
+                                              : 'Home Goal',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
-                                            color: gType == 'School' ? Colors.blue : Colors.green.shade800,
+                                            color: gType == 'School'
+                                                ? Colors.blue
+                                                : Colors.green.shade800,
                                           ),
                                         ),
                                         const SizedBox(width: 4),
-                                        const Icon(Icons.sync, size: 10, color: Colors.grey),
+                                        const Icon(Icons.sync,
+                                            size: 10, color: Colors.grey),
                                       ],
                                     ),
                                   ),
@@ -1660,7 +1858,8 @@ class EducatorController extends GetxController {
                   onPressed: () => Get.back(),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   child: const Text('Cancel'),
                 ),
@@ -1672,16 +1871,22 @@ class EducatorController extends GetxController {
                     Get.back();
                     await saveDraft(); // Save again if types were toggled
                     isReviewComplete.value = true;
-                    Get.snackbar('Success', 'Goals confirmed and saved successfully!',
-                        snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+                    Get.snackbar(
+                        'Success', 'Goals confirmed and saved successfully!',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.green,
+                        colorText: Colors.white);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     elevation: 0,
                   ),
-                  child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text('Save',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -1695,24 +1900,25 @@ class EducatorController extends GetxController {
   Future<void> submitAssessment() async {
     final studentDetails = selectedIepStudentDetails;
     if (studentDetails == null) return;
-    
+
     final studentId = studentDetails['studentId']?.toString() ??
-                   studentDetails['id']?.toString() ??
-                   studentDetails['_id']?.toString();
-                   
-    final String yearKey = selectedIepYearId.value.isNotEmpty ? selectedIepYearId.value : "unknown_year";
+        studentDetails['id']?.toString() ??
+        studentDetails['_id']?.toString();
+
+    final String yearKey = selectedIepYearId.value.isNotEmpty
+        ? selectedIepYearId.value
+        : "unknown_year";
 
     if (studentId == null || studentId.isEmpty) {
-      Get.snackbar('Error', 'Invalid student ID', backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar('Error', 'Invalid student ID',
+          backgroundColor: Colors.red, colorText: Colors.white);
       return;
     }
 
     final payload = {
       "studentId": studentId,
       "year": yearKey,
-      "status": {
-        "entry": "submitted"
-      }
+      "status": {"entry": "submitted"}
     };
 
     isSubmitting.value = true;
@@ -1720,30 +1926,39 @@ class EducatorController extends GetxController {
       final response = await _apiProvider.saveStudentGoals(payload);
       if (response.statusCode == 200 || response.statusCode == 201) {
         Get.snackbar('Success', 'Assessment submitted successfully!',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
-        
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
+
         // Update local status in the list so UI updates immediately
         final index = niepidStudentAssessments.indexWhere((s) {
-          final id = s['studentId']?.toString() ?? s['id']?.toString() ?? s['_id']?.toString();
+          final id = s['studentId']?.toString() ??
+              s['id']?.toString() ??
+              s['_id']?.toString();
           return id == studentId;
         });
-        
+
         if (index != -1) {
-          final student = Map<String, dynamic>.from(niepidStudentAssessments[index]);
+          final student =
+              Map<String, dynamic>.from(niepidStudentAssessments[index]);
           if (student['status'] == null) student['status'] = {};
           student['status']['entry'] = 'submitted';
           niepidStudentAssessments[index] = student;
           niepidStudentAssessments.refresh();
         }
-        
+
         isReviewComplete.value = false; // Reset for next time
       } else {
         Get.snackbar('Error', 'Failed to submit: ${response.body}',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
     } catch (e) {
       Get.snackbar('Error', 'Submission error: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isSubmitting.value = false;
     }
@@ -1869,8 +2084,6 @@ class EducatorController extends GetxController {
     }
   }
 
-
-
   void setGoalMonitoringAnswer(String questionId, String option) {
     final current = goalMonitoringAnswers[questionId] ?? <String, dynamic>{};
     if (current['mainOption'] == option) {
@@ -1907,12 +2120,14 @@ class EducatorController extends GetxController {
       final score = ans['score']?.toString() ?? '';
       if (grade.isNotEmpty) {
         final combinedVal = score.isNotEmpty ? "$grade : $score" : grade;
-        
+
         goalsList.add({
           "questionId": qId,
           "goalName": ans['goalName'] ?? 'Unknown Goal',
           "selectedOption": combinedVal,
-          "goalType": ans['goalType'] is List ? ans['goalType'] : [ans['goalType'] ?? "School"],
+          "goalType": ans['goalType'] is List
+              ? ans['goalType']
+              : [ans['goalType'] ?? "School"],
           "isGoal": true,
           "remarks": ans['remarks'] ?? ""
         });
@@ -1936,15 +2151,21 @@ class EducatorController extends GetxController {
       final response = await _apiProvider.saveStudentGoals(payload);
       if (response.statusCode == 200 || response.statusCode == 201) {
         Get.snackbar('Success', 'Goal progress saved successfully!',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
         await fetchGoalMonitoringQuestions(); // Refresh statuses and data
       } else {
         Get.snackbar('Error', 'Failed to save: ${response.body}',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
     } catch (e) {
       Get.snackbar('Error', 'Save error: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isSavingGoalMonitoringDraft.value = false;
     }
@@ -1953,10 +2174,12 @@ class EducatorController extends GetxController {
   Future<void> submitGoalMonitoring() async {
     if (!isGoalMonitoringReviewComplete.value) {
       Get.snackbar('Error', 'Please review the goals before submitting.',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white);
       return;
     }
-    
+
     final studentId = selectedGoalMonitoringStudentId.value;
     final yearId = selectedGoalMonitoringYearId.value;
     final term = selectedGoalMonitoringTerm.value;
@@ -1970,9 +2193,7 @@ class EducatorController extends GetxController {
     final payload = {
       "studentId": studentId,
       "year": yearId,
-      "status": {
-        term: "submitted"
-      }
+      "status": {term: "submitted"}
     };
 
     isSubmittingGoalMonitoring.value = true;
@@ -1980,15 +2201,21 @@ class EducatorController extends GetxController {
       final response = await _apiProvider.saveStudentGoals(payload);
       if (response.statusCode == 200 || response.statusCode == 201) {
         Get.snackbar('Success', 'Goal progress submitted successfully!',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
         await fetchGoalMonitoringQuestions();
       } else {
         Get.snackbar('Error', 'Failed to submit: ${response.body}',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
     } catch (e) {
       Get.snackbar('Error', 'Submission error: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isSubmittingGoalMonitoring.value = false;
     }
@@ -2002,7 +2229,9 @@ class EducatorController extends GetxController {
   void toggleGoalMonitoringType(String questionId) {
     final current = goalMonitoringAnswers[questionId] ?? <String, dynamic>{};
     final gRaw = current['goalType'];
-    final gStr = gRaw is List ? (gRaw.isNotEmpty ? gRaw.first.toString() : 'School') : (gRaw?.toString() ?? 'School');
+    final gStr = gRaw is List
+        ? (gRaw.isNotEmpty ? gRaw.first.toString() : 'School')
+        : (gRaw?.toString() ?? 'School');
     current['goalType'] = gStr == 'Home' ? 'School' : 'Home';
     goalMonitoringAnswers[questionId] = current;
     goalMonitoringAnswers.refresh();
@@ -2018,7 +2247,8 @@ class EducatorController extends GetxController {
         if (ans != null) {
           goalsToReview.add({
             'id': qId,
-            'question': ans['goalName'] ?? q['question']?.toString() ?? 'Unknown Goal',
+            'question':
+                ans['goalName'] ?? q['question']?.toString() ?? 'Unknown Goal',
             'goalType': ans['goalType'] ?? 'School',
           });
         }
@@ -2027,7 +2257,9 @@ class EducatorController extends GetxController {
 
     if (goalsToReview.isEmpty) {
       Get.snackbar('Review', 'No monitored goals to review.',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.orange, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white);
       return;
     }
 
@@ -2041,13 +2273,18 @@ class EducatorController extends GetxController {
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
             gradient: LinearGradient(colors: [Colors.blue, Color(0xFF64B5F6)]),
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
           ),
           child: const Row(
             children: [
               Icon(Icons.rate_review, color: Colors.white),
               SizedBox(width: 12),
-              Text('Review Goals', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Review Goals',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -2074,33 +2311,47 @@ class EducatorController extends GetxController {
                     return Obx(() {
                       final currentData = goalMonitoringAnswers[qId] ?? {};
                       final gRaw = currentData['goalType'];
-                      final gType = gRaw is List ? (gRaw.isNotEmpty ? gRaw.first.toString() : 'School') : (gRaw?.toString() ?? 'School');
+                      final gType = gRaw is List
+                          ? (gRaw.isNotEmpty ? gRaw.first.toString() : 'School')
+                          : (gRaw?.toString() ?? 'School');
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(goal['question'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            Text(goal['question'],
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 14)),
                             const SizedBox(height: 8),
                             GestureDetector(
                               onTap: () => toggleGoalMonitoringType(qId),
                               child: Row(
                                 children: [
-                                  const Text('Goal Type: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  const Text('Goal Type: ',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey)),
                                   const SizedBox(width: 4),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: gType == 'School' ? Colors.blue.shade50 : Colors.green.shade50,
+                                      color: gType == 'School'
+                                          ? Colors.blue.shade50
+                                          : Colors.green.shade50,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: gType == 'School' ? Colors.blue.shade200 : Colors.green.shade200),
+                                      border: Border.all(
+                                          color: gType == 'School'
+                                              ? Colors.blue.shade200
+                                              : Colors.green.shade200),
                                     ),
                                     child: Text(gType,
                                         style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
-                                            color: gType == 'School' ? Colors.blue.shade700 : Colors.green.shade700)),
+                                            color: gType == 'School'
+                                                ? Colors.blue.shade700
+                                                : Colors.green.shade700)),
                                   ),
                                 ],
                               ),
@@ -2125,20 +2376,22 @@ class EducatorController extends GetxController {
               isGoalMonitoringReviewComplete.value = true;
               Get.back();
               Get.snackbar('Success', 'Review complete. You can now submit.',
-                  snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.green,
+                  colorText: Colors.white);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Save & Complete', style: TextStyle(color: Colors.white)),
+            child: const Text('Save & Complete',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
-
-
 
   Future<void> saveCareGiverMeetingDraft({
     required String term,
@@ -2163,16 +2416,23 @@ class EducatorController extends GetxController {
 
       final response = await _apiProvider.saveCareGiverMeeting(payload);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Get.snackbar('Success', 'Caregiver meeting statuses saved successfully!',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+        Get.snackbar(
+            'Success', 'Caregiver meeting statuses saved successfully!',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
         await fetchCareGiverMeetingData();
       } else {
         Get.snackbar('Error', 'Failed to save caregiver meeting statuses.',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
     } catch (e) {
       Get.snackbar('Error', 'Save error: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoadingCareGiverMeeting.value = false;
     }
@@ -2202,15 +2462,21 @@ class EducatorController extends GetxController {
       final response = await _apiProvider.submitCareGiverMeeting(payload);
       if (response.statusCode == 200 || response.statusCode == 201) {
         Get.snackbar('Success', 'Caregiver meeting submitted successfully!',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.green, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
         await fetchCareGiverMeetingData();
       } else {
         Get.snackbar('Error', 'Failed to submit caregiver meeting.',
-            snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
       }
     } catch (e) {
       Get.snackbar('Error', 'Submission error: $e',
-          snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     } finally {
       isLoadingCareGiverMeeting.value = false;
     }

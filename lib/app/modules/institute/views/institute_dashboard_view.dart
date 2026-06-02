@@ -17,22 +17,27 @@ class InstituteDashboardView extends GetView<InstituteController> {
         children: [
           _buildHeader(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Obx(() {
-                if (controller.isNiepidDashboardLoading.value) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                
-                if (controller.isNipiedDisha.value) {
-                  return _buildNiepidDashboard();
-                }
-                
-                return ResponsiveLayout(
-                  mobile: _buildMobileLayout(),
-                  desktop: _buildDesktopLayout(),
-                );
-              }),
+            child: RefreshIndicator(
+              onRefresh: () => controller.refreshDashboardData(),
+              color: AppTheme.primaryColor,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Obx(() {
+                  if (controller.isNiepidDashboardLoading.value) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (controller.isNipiedDisha.value) {
+                    return _buildNiepidDashboard();
+                  }
+
+                  return ResponsiveLayout(
+                    mobile: _buildMobileLayout(),
+                    desktop: _buildDesktopLayout(),
+                  );
+                }),
+              ),
             ),
           ),
         ],
@@ -56,11 +61,16 @@ class InstituteDashboardView extends GetView<InstituteController> {
         const SizedBox(height: 16),
         const Row(
           children: [
-            Expanded(child: _DashboardStatCard(title: 'Total Students', value: '16', icon: Icons.people)),
+            Expanded(
+                child: _DashboardStatCard(
+                    title: 'Total Students', value: '16', icon: Icons.people)),
             SizedBox(width: 16),
             Expanded(
                 child: _DashboardStatCard(
-                    title: 'Avg. Attendance', value: '85%', icon: Icons.calendar_today, color: Colors.blue)),
+                    title: 'Avg. Attendance',
+                    value: '85%',
+                    icon: Icons.calendar_today,
+                    color: Colors.blue)),
           ],
         ),
         const SizedBox(height: 24),
@@ -94,15 +104,30 @@ class InstituteDashboardView extends GetView<InstituteController> {
         const SizedBox(height: 16),
         const Row(
           children: [
-            Expanded(child: _DashboardStatCard(title: 'Total Students', value: '16', icon: Icons.people)),
-            SizedBox(width: 16),
-            Expanded(child: _DashboardStatCard(title: 'Active Educators', value: '8', icon: Icons.supervisor_account, color: Colors.orange)),
+            Expanded(
+                child: _DashboardStatCard(
+                    title: 'Total Students', value: '16', icon: Icons.people)),
             SizedBox(width: 16),
             Expanded(
                 child: _DashboardStatCard(
-                    title: 'Avg. Attendance', value: '85%', icon: Icons.calendar_today, color: Colors.blue)),
+                    title: 'Active Educators',
+                    value: '8',
+                    icon: Icons.supervisor_account,
+                    color: Colors.orange)),
             SizedBox(width: 16),
-            Expanded(child: _DashboardStatCard(title: 'Reports Generated', value: '42', icon: Icons.assessment, color: Colors.green)),
+            Expanded(
+                child: _DashboardStatCard(
+                    title: 'Avg. Attendance',
+                    value: '85%',
+                    icon: Icons.calendar_today,
+                    color: Colors.blue)),
+            SizedBox(width: 16),
+            Expanded(
+                child: _DashboardStatCard(
+                    title: 'Reports Generated',
+                    value: '42',
+                    icon: Icons.assessment,
+                    color: Colors.green)),
           ],
         ),
         const SizedBox(height: 32),
@@ -948,7 +973,7 @@ class _StudentAssessmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = student['status'] as Map<String, dynamic>?;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1078,4 +1103,3 @@ class _StudentAssessmentCard extends StatelessWidget {
     );
   }
 }
-

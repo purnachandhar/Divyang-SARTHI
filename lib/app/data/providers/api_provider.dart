@@ -126,7 +126,7 @@ class ApiProvider extends GetConnect {
 
   Future<Response> updateEducator(String id, Map<String, dynamic> data) async {
     final headers = await _buildAuthHeaders();
-    return put(
+    return patch(
       '/users/private/educator/update/$id',
       data,
       headers: headers,
@@ -288,6 +288,10 @@ class ApiProvider extends GetConnect {
     return get('/dropdown?name=disability&onlyActive=true');
   }
 
+  Future<Response> getQualifications() async {
+    return get('/dropdown?name=qualification&onlyActive=true');
+  }
+
   Future<Response> getPincodeDetails(String pincode) async {
     return get('/pincode/$pincode');
   }
@@ -447,5 +451,23 @@ class ApiProvider extends GetConnect {
     final headers = await _buildAuthHeaders();
     return patch('/student/users/updatestudentid/$studentId', data,
         headers: headers);
+  }
+
+  Future<Response> approveProfessional(String educatorId) async {
+    final headers = await _buildAuthHeaders();
+    return patch('/admin/activity/$educatorId/approve', {"isApproved": true},
+        headers: headers);
+  }
+
+  Future<Response> disapproveProfessional(String educatorId) async {
+    final headers = await _buildAuthHeaders();
+    return patch(
+        '/educator/ai/approveeducator/$educatorId', {"isApproved": false},
+        headers: headers);
+  }
+
+  Future<Response> deleteAcademicYear(String id) async {
+    final headers = await _buildAuthHeaders();
+    return delete('/admin/school/deleteiep/$id', headers: headers);
   }
 }

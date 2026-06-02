@@ -143,8 +143,8 @@ class EducatorStudentDetailView extends GetView<EducatorController> {
                     _InfoRow(label: 'Student ID', value: data['_id'] ?? 'N/A'),
                   ]),
                   const SizedBox(height: 32),
-                  _buildActionButtons(data),
-                  const SizedBox(height: 40),
+                  // _buildActionButtons(data),
+                  // const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -182,10 +182,10 @@ class EducatorStudentDetailView extends GetView<EducatorController> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.white),
-            onPressed: () => _showDeleteConfirmation(data),
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.delete_outline, color: Colors.white),
+          //   onPressed: () => _showDeleteConfirmation(data),
+          // ),
         ],
       ),
     );

@@ -55,6 +55,8 @@ class _InstituteProfessionalDetailViewState
 
   String? _designation;
   String? _qualification;
+  bool _isApproved = false;
+  bool _isUpdatingStatus = false;
 
   bool _isEditing = false;
 
@@ -94,6 +96,15 @@ class _InstituteProfessionalDetailViewState
     _qualification = _qualifications.contains(initialQualification)
         ? initialQualification
         : null;
+
+    final statusVal = _data['isApproved'];
+    if (statusVal is bool) {
+      _isApproved = statusVal;
+    } else if (statusVal is String) {
+      _isApproved = statusVal.toLowerCase() == 'true';
+    } else {
+      _isApproved = false;
+    }
   }
 
   @override
@@ -226,11 +237,10 @@ class _InstituteProfessionalDetailViewState
                       validator: (val) =>
                           val == null ? 'Qualification is required' : null,
                     ),
+                    const SizedBox(height: 24),
+                    _buildStatusSection(),
                     const SizedBox(height: 32),
-                    if (_isEditing)
-                      _buildSaveCancelButtons()
-                    else
-                      _buildBottomActions(),
+                    if (_isEditing) _buildSaveCancelButtons() else Container(),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -421,6 +431,136 @@ class _InstituteProfessionalDetailViewState
         ),
       ],
     );
+  }
+
+  Widget _buildStatusSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Status'),
+        const SizedBox(height: 8),
+        Obx(() {
+          final isGlobalLoading =
+              _controller.isUpdatingProfessionalStatus.value;
+          final currentLoading = isGlobalLoading && _isUpdatingStatus;
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: RadioListTile<bool>(
+                    title: const Text('Active',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    value: true,
+                    groupValue: _isApproved,
+                    activeColor: Colors.green,
+                    onChanged: (val) => _handleStatusChange(val),
+                  ),
+                ),
+                Expanded(
+                  child: RadioListTile<bool>(
+                    title: const Text('Inactive',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    value: false,
+                    groupValue: _isApproved,
+                    activeColor: Colors.red,
+                    onChanged: (val) => _handleStatusChange(val),
+                  ),
+                ),
+                if (currentLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Future<void> _handleStatusChange(bool? newVal) async {
+    if (newVal == null || newVal == _isApproved) return;
+
+    if (newVal == true) {
+      final confirm = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Verify Professional?'),
+          content: const Text(
+            'Are you sure you want to verify this professional?\n\n'
+            'This action cannot be undone. Once verified, the professional will have access to the platform.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('No, cancel!',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Yes, verify it!'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+    } else if (newVal == false) {
+      final confirm = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Are you sure?'),
+          content: const Text(
+            'You want to Suspend this!',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Yes'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+    }
+
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    await _controller.updateProfessionalStatus(_educatorId, newVal);
+
+    if (mounted) {
+      setState(() {
+        _isApproved = newVal;
+        _isUpdatingStatus = false;
+      });
+    }
   }
 
   Widget _buildSaveCancelButtons() {

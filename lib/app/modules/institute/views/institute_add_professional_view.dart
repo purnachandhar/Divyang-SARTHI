@@ -83,41 +83,47 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                       label: 'Designation*',
                       hint: 'Select Designation',
                       items: const [
-                        'Educator',
-                        'SpecialEducator',
-                        'OccupationalTherapist',
-                        'SpeechTherapist',
-                        'Physiotherapist',
-                        'Psychologist',
-                        'Counselor',
-                        'Other',
+                        {'label': 'Educator', 'value': 'Educator'},
+                        {
+                          'label': 'Special Educator',
+                          'value': 'SpecialEducator'
+                        },
+                        {
+                          'label': 'Occupational Therapist',
+                          'value': 'OccupationalTherapist'
+                        },
+                        {
+                          'label': 'Speech Therapist',
+                          'value': 'SpeechTherapist'
+                        },
+                        {
+                          'label': 'Physiotherapist',
+                          'value': 'Physiotherapist'
+                        },
+                        {'label': 'Psychologist', 'value': 'Psychologist'},
+                        {'label': 'Counselor', 'value': 'Counselor'},
+                        {'label': 'Other', 'value': 'Other'},
                       ],
                       value: designation,
                       validator: (val) =>
                           val == null ? 'Designation is required' : null,
                     ),
                     const SizedBox(height: 16),
-                    _buildDropdownField(
-                      label: 'Qualification*',
-                      hint: 'Select Qualification',
-                      items: const [
-                        'B.Ed Special Education',
-                        'D.Ed Special Education',
-                        'M.Ed Special Education',
-                        'Diploma in Clinical Psychology',
-                        'diploma-behavioural-therapy',
-                        'certificate-behaviour-therapy',
-                        'diploma-speech-language-pathology',
-                        'ma-psychology',
-                        'mpt',
-                        'phd-physiotherapy',
-                        'phd-speech-hearing',
-                        'Other',
-                      ],
-                      value: qualification,
-                      validator: (val) =>
-                          val == null ? 'Qualification is required' : null,
-                    ),
+                    Obx(() => _buildDropdownField(
+                          label: 'Qualification*',
+                          hint: controller.isQualificationsLoading.value
+                              ? 'Loading...'
+                              : 'Select Qualification',
+                          items: controller.qualificationList
+                              .map((e) => {
+                                    'label': e['label']?.toString() ?? '',
+                                    'value': e['value']?.toString() ?? '',
+                                  })
+                              .toList(),
+                          value: qualification,
+                          validator: (val) =>
+                              val == null ? 'Qualification is required' : null,
+                        )),
                     const SizedBox(height: 24),
                     _buildSectionTitle('Contact Information'),
                     const SizedBox(height: 16),
@@ -127,10 +133,10 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value!.isEmpty && mobileController.text.isEmpty) {
-                          return 'Email or Mobile is required';
+                        if (value == null || value.isEmpty) {
+                          return 'Email ID is required';
                         }
-                        if (value.isNotEmpty && !GetUtils.isEmail(value)) {
+                        if (!GetUtils.isEmail(value)) {
                           return 'Invalid email format';
                         }
                         return null;
@@ -144,10 +150,10 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                       keyboardType: TextInputType.phone,
                       maxLength: 10,
                       validator: (value) {
-                        if (value!.isEmpty && emailController.text.isEmpty) {
-                          return 'Email or Mobile is required';
+                        if (value == null || value.isEmpty) {
+                          return 'Mobile number is required';
                         }
-                        if (value.isNotEmpty && value.length != 10) {
+                        if (value.length != 10) {
                           return 'Mobile number must be 10 digits';
                         }
                         return null;
@@ -194,10 +200,10 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                             onPressed: controller.isAddingProfessional.value
                                 ? null
                                 : () {
-                                    if (!formKey.currentState!.validate()) return;
+                                    if (!formKey.currentState!.validate())
+                                      return;
                                     if (!agreeToTerms.value) {
-                                      Get.snackbar(
-                                          'Error',
+                                      Get.snackbar('Error',
                                           'Please agree to Terms & Conditions',
                                           snackPosition: SnackPosition.BOTTOM,
                                           backgroundColor:
@@ -205,8 +211,9 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                                           colorText: Colors.red);
                                       return;
                                     }
-                                     controller.addProfessional(
-                                      firstName: firstNameController.text.trim(),
+                                    controller.addProfessional(
+                                      firstName:
+                                          firstNameController.text.trim(),
                                       lastName: lastNameController.text.trim(),
                                       email: emailController.text.trim(),
                                       mobile: mobileController.text.trim(),
@@ -214,12 +221,11 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                                       designation: designation.value ?? '',
                                       qualification: qualification.value ?? '',
                                       agreeToTerms: agreeToTerms.value,
-                                     );
+                                    );
                                   },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryColor,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
@@ -356,7 +362,7 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
   Widget _buildDropdownField({
     required String label,
     required String hint,
-    required List<String> items,
+    required List<Map<String, String>> items,
     required RxnString value,
     String? Function(String?)? validator,
   }) {
@@ -367,10 +373,16 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         const SizedBox(height: 8),
         Obx(() => DropdownButtonFormField<String>(
+              isExpanded: true,
               value: value.value,
               hint: Text(hint),
               items: items
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .map((e) => DropdownMenuItem(
+                      value: e['value'],
+                      child: Text(
+                        e['label'] ?? '',
+                        overflow: TextOverflow.ellipsis,
+                      )))
                   .toList(),
               onChanged: (val) => value.value = val,
               validator: validator,

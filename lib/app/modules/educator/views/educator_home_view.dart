@@ -89,7 +89,7 @@ class EducatorHomeView extends GetView<EducatorController> {
             const BottomNavigationBarItem(
               icon: Icon(Icons.school_outlined),
               activeIcon: Icon(Icons.school),
-              label: 'Student',
+              label: 'PwID',
             ),
             if (isNiepid)
               const BottomNavigationBarItem(

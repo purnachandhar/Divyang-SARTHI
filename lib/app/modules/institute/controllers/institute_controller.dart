@@ -18,6 +18,7 @@ class InstituteController extends GetxController {
 
   var educators = <Map<String, dynamic>>[].obs;
   var isEducatorsLoading = false.obs;
+  var isUpdatingProfessionalStatus = false.obs;
   var educatorSearchQuery = ''.obs;
 
   List<Map<String, dynamic>> get filteredEducators {
@@ -50,6 +51,9 @@ class InstituteController extends GetxController {
 
   var availableDistricts = <String>[].obs;
   var isPincodeLoading = false.obs;
+
+  var qualificationList = <Map<String, dynamic>>[].obs;
+  var isQualificationsLoading = false.obs;
 
   var isNipiedDisha = false.obs;
   var niepidDashboardData = Rxn<Map<String, dynamic>>();
@@ -101,6 +105,7 @@ class InstituteController extends GetxController {
     super.onInit();
     fetchCurrentProfile();
     fetchDisabilityTypes();
+    fetchQualifications();
 
     // Listen for changes to questions or level to re-filter
     ever(niepidQuestions, (_) => _initializeDomains());
@@ -154,6 +159,10 @@ class InstituteController extends GetxController {
     } finally {
       isProfileLoading.value = false;
     }
+  }
+
+  Future<void> refreshDashboardData() async {
+    await fetchCurrentProfile();
   }
 
   Future<void> fetchEducators() async {
@@ -305,6 +314,33 @@ class InstituteController extends GetxController {
       print('Error fetching disability types: $e');
     } finally {
       isDisabilityLoading.value = false;
+    }
+  }
+
+  Future<void> fetchQualifications() async {
+    try {
+      isQualificationsLoading.value = true;
+      final response = await _apiProvider.getQualifications();
+      print('Qualifications Response Status: ${response.statusCode}');
+      print('Qualifications Response Body: ${response.body}');
+      if (response.statusCode == 200) {
+        if (response.body is List) {
+          qualificationList
+              .assignAll(List<Map<String, dynamic>>.from(response.body));
+        } else if (response.body is Map && response.body['data'] is List) {
+          qualificationList.assignAll(
+              List<Map<String, dynamic>>.from(response.body['data']));
+        } else if (response.body is Map && response.body['items'] is List) {
+          qualificationList.assignAll(
+              List<Map<String, dynamic>>.from(response.body['items']));
+        }
+      } else {
+        print('Error fetching qualifications: ${response.statusText}');
+      }
+    } catch (e) {
+      print('Exception fetching qualifications: $e');
+    } finally {
+      isQualificationsLoading.value = false;
     }
   }
 
@@ -524,6 +560,54 @@ class InstituteController extends GetxController {
       print('Exception fetching IEP: $e');
     } finally {
       isAcademicYearsLoading.value = false;
+    }
+  }
+
+  Future<void> deleteAcademicYear(String id) async {
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Delete Academic Year?'),
+        content: const Text(
+            'Are you sure you want to delete this academic year record? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      isAcademicYearsLoading.value = true;
+      try {
+        final response = await _apiProvider.deleteAcademicYear(id);
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          fetchAcademicYears();
+          Get.snackbar('Success', 'Academic year deleted successfully',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.green,
+              colorText: Colors.white);
+        } else {
+          Get.snackbar('Error', 'Failed to delete academic year',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.red,
+              colorText: Colors.white);
+        }
+      } catch (e) {
+        print('Error deleting academic year: $e');
+        Get.snackbar('Error', 'An error occurred',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      } finally {
+        isAcademicYearsLoading.value = false;
+      }
     }
   }
 
@@ -1211,27 +1295,6 @@ class InstituteController extends GetxController {
     Get.toNamed('/institute-chat-detail', arguments: userData);
   }
 
-  void deleteAcademicYear(String id) {
-    Get.defaultDialog(
-      title: 'Confirm Delete',
-      middleText: 'Are you sure you want to delete this academic year?',
-      textConfirm: 'Delete',
-      confirmTextColor: Colors.white,
-      buttonColor: Colors.red,
-      textCancel: 'Cancel',
-      onConfirm: () {
-        // Here we would call the API to delete
-        // e.g. await _apiProvider.deleteIep(id);
-        Get.back(); // close dialog
-        Get.snackbar('Success', 'Academic year deleted successfully',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white);
-        fetchAcademicYears(); // refresh list
-      },
-    );
-  }
-
   void goToAcademicYear() {
     fetchAcademicYears();
     Get.toNamed('/institute-academic-year');
@@ -1285,6 +1348,8 @@ class InstituteController extends GetxController {
       if (goalsResponse.statusCode == 200) {
         niepidStudentGoals.value = goalsResponse.body;
         print('DEBUG: Student Goals fetched successfully');
+        
+      
       } else {
         print(
             'DEBUG: No existing goals found or error fetching goals: ${goalsResponse.statusText}');
@@ -2158,7 +2223,7 @@ class InstituteController extends GetxController {
     isUpdatingEducator.value = true;
     try {
       final body = {
-        "roles": "Educator",
+        "roles": ["Educator"],
         if (orgId.isNotEmpty) "organisation": orgId,
         "firstName": firstName,
         "lastName": lastName,
@@ -2169,6 +2234,8 @@ class InstituteController extends GetxController {
         "qualification": qualification,
         "isNipiedDisha": isNipiedDisha.value,
       };
+
+      print('Update Educator Body request: $body');
 
       final response = await _apiProvider.updateEducator(educatorId, body);
 
@@ -2201,6 +2268,53 @@ class InstituteController extends GetxController {
       return false;
     } finally {
       isUpdatingEducator.value = false;
+    }
+  }
+
+  Future<void> updateProfessionalStatus(
+      String educatorId, bool isActive) async {
+    try {
+      isUpdatingProfessionalStatus.value = true;
+      final response = isActive
+          ? await _apiProvider.approveProfessional(educatorId)
+          : await _apiProvider.disapproveProfessional(educatorId);
+
+      print('Update Status (${isActive ? "Approve" : "Disapprove"}):');
+      print('Status Code: ${response.statusCode}');
+      print('Response: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        fetchEducators(); // Refresh the list
+        Get.snackbar(
+          'Success',
+          'Professional status updated to ${isActive ? "Active" : "Inactive"}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      } else {
+        final message = (response.body is Map)
+            ? response.body['message'] ?? 'Failed to update status'
+            : 'Failed to update status';
+        Get.snackbar(
+          'Error',
+          message.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      print('Exception updating status: $e');
+      Get.snackbar(
+        'Error',
+        'An error occurred while updating status',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isUpdatingProfessionalStatus.value = false;
     }
   }
 }

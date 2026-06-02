@@ -17,11 +17,16 @@ class EducatorDashboardView extends GetView<EducatorController> {
         children: [
           _buildHeader(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: ResponsiveLayout(
-                mobile: _buildMobileLayout(),
-                desktop: _buildDesktopLayout(),
+            child: RefreshIndicator(
+              onRefresh: () => controller.refreshDashboardData(),
+              color: AppTheme.primaryColor,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: ResponsiveLayout(
+                  mobile: _buildMobileLayout(),
+                  desktop: _buildDesktopLayout(),
+                ),
               ),
             ),
           ),
@@ -42,7 +47,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
         _buildNiepidDashboardSection(),
         _buildNiepidStudentAssessmentsSection(),
         Obx(() {
-          final isNiepid = controller.currentEducator.value?.isNipiedDisha == true;
+          final isNiepid =
+              controller.currentEducator.value?.isNipiedDisha == true;
           if (isNiepid) return const SizedBox.shrink();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +75,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
         _buildNiepidDashboardSection(),
         _buildNiepidStudentAssessmentsSection(),
         Obx(() {
-          final isNiepid = controller.currentEducator.value?.isNipiedDisha == true;
+          final isNiepid =
+              controller.currentEducator.value?.isNipiedDisha == true;
           if (isNiepid) return const SizedBox.shrink();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,9 +134,12 @@ class EducatorDashboardView extends GetView<EducatorController> {
         children: [
           Obx(() {
             final educator = controller.currentEducator.value;
-            final name = educator?.fullName.isNotEmpty == true ? educator!.fullName : 'Loading...';
-            final schoolName = educator?.organisation?.schoolName ?? 'Loading Institute...';
-            
+            final name = educator?.fullName.isNotEmpty == true
+                ? educator!.fullName
+                : 'Loading...';
+            final schoolName =
+                educator?.organisation?.schoolName ?? 'Loading Institute...';
+
             String addressStr = '';
             if (educator?.organisation?.address != null) {
               addressStr = educator!.organisation!.address!;
@@ -232,28 +242,40 @@ class EducatorDashboardView extends GetView<EducatorController> {
                     value: 25,
                     title: '25%',
                     radius: 40,
-                    titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                   PieChartSectionData(
                     color: Colors.orange,
                     value: 35,
                     title: '35%',
                     radius: 40,
-                    titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                   PieChartSectionData(
                     color: Colors.green,
                     value: 20,
                     title: '20%',
                     radius: 40,
-                    titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                   PieChartSectionData(
                     color: Colors.purple,
                     value: 20,
                     title: '20%',
                     radius: 40,
-                    titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ],
               ),
@@ -335,7 +357,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
                         titles[value.toInt()],
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     );
                   }
@@ -350,15 +373,20 @@ class EducatorDashboardView extends GetView<EducatorController> {
                 getTitlesWidget: (value, meta) {
                   return Text(
                     value.toInt().toString(),
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                    style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey),
                   );
                 },
                 reservedSize: 30,
                 interval: 20,
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           gridData: FlGridData(
             show: true,
@@ -375,15 +403,33 @@ class EducatorDashboardView extends GetView<EducatorController> {
           barGroups: [
             BarChartGroupData(
               x: 0,
-              barRods: [BarChartRodData(toY: 65, color: Colors.green, width: 20, borderRadius: BorderRadius.circular(4))],
+              barRods: [
+                BarChartRodData(
+                    toY: 65,
+                    color: Colors.green,
+                    width: 20,
+                    borderRadius: BorderRadius.circular(4))
+              ],
             ),
             BarChartGroupData(
               x: 1,
-              barRods: [BarChartRodData(toY: 20, color: Colors.orange, width: 20, borderRadius: BorderRadius.circular(4))],
+              barRods: [
+                BarChartRodData(
+                    toY: 20,
+                    color: Colors.orange,
+                    width: 20,
+                    borderRadius: BorderRadius.circular(4))
+              ],
             ),
             BarChartGroupData(
               x: 2,
-              barRods: [BarChartRodData(toY: 15, color: Colors.blue, width: 20, borderRadius: BorderRadius.circular(4))],
+              barRods: [
+                BarChartRodData(
+                    toY: 15,
+                    color: Colors.blue,
+                    width: 20,
+                    borderRadius: BorderRadius.circular(4))
+              ],
             ),
           ],
         ),
@@ -403,7 +449,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
         );
       }
 
-      final dashboardData = controller.niepidDashboardData['dashboard'] as Map<String, dynamic>?;
+      final dashboardData =
+          controller.niepidDashboardData['dashboard'] as Map<String, dynamic>?;
       if (dashboardData == null) {
         return const SizedBox.shrink();
       }
@@ -434,7 +481,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        controller.currentEducator.value?.fullName ?? 'Educator Name',
+                        controller.currentEducator.value?.fullName ??
+                            'Educator Name',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -475,10 +523,11 @@ class EducatorDashboardView extends GetView<EducatorController> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   isExpanded: true,
-                  value: controller.selectedIepYearId.value.isNotEmpty 
-                      ? controller.selectedIepYearId.value 
+                  value: controller.selectedIepYearId.value.isNotEmpty
+                      ? controller.selectedIepYearId.value
                       : controller.iepAcademicYears.first['id']?.toString(),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: AppTheme.primaryColor),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -489,7 +538,9 @@ class EducatorDashboardView extends GetView<EducatorController> {
                       controller.selectedIepYearId.value = newValue;
                     }
                   },
-                  items: controller.iepAcademicYears.map<DropdownMenuItem<String>>((Map<String, dynamic> iep) {
+                  items: controller.iepAcademicYears
+                      .map<DropdownMenuItem<String>>(
+                          (Map<String, dynamic> iep) {
                     return DropdownMenuItem<String>(
                       value: iep['id']?.toString() ?? '',
                       child: Text('${controller.formatIepYear(iep)}'),
@@ -662,7 +713,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -681,13 +733,20 @@ class EducatorDashboardView extends GetView<EducatorController> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildAssessmentStatusBadge('Baseline', status['entry'])),
+              Expanded(
+                  child:
+                      _buildAssessmentStatusBadge('Baseline', status['entry'])),
               const SizedBox(width: 8),
-              Expanded(child: _buildAssessmentStatusBadge('IEP', status['entry'])),
+              Expanded(
+                  child: _buildAssessmentStatusBadge('IEP', status['entry'])),
               const SizedBox(width: 8),
-              Expanded(child: _buildAssessmentStatusBadge('Term 1', status['term1'])),
+              Expanded(
+                  child:
+                      _buildAssessmentStatusBadge('Term 1', status['term1'])),
               const SizedBox(width: 8),
-              Expanded(child: _buildAssessmentStatusBadge('Term 2', status['term2'])),
+              Expanded(
+                  child:
+                      _buildAssessmentStatusBadge('Term 2', status['term2'])),
             ],
           ),
         ],
@@ -697,10 +756,10 @@ class EducatorDashboardView extends GetView<EducatorController> {
 
   Widget _buildAssessmentStatusBadge(String title, String? statusStr) {
     final String status = statusStr?.toLowerCase() ?? 'pending';
-    
+
     Color bgColor = Colors.grey.withOpacity(0.1);
     Color textColor = Colors.grey[700]!;
-    
+
     if (status == 'approve' || status == 'approved') {
       bgColor = Colors.green.withOpacity(0.1);
       textColor = Colors.green;
