@@ -5,6 +5,8 @@ import '../controllers/institute_controller.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_gradients.dart';
 import '../../../utils/responsive_layout.dart';
+import 'iep_assessment_view.dart';
+import 'goal_monitoring_view.dart';
 
 class InstituteDashboardView extends GetView<InstituteController> {
   const InstituteDashboardView({super.key});
@@ -654,6 +656,7 @@ class InstituteDashboardView extends GetView<InstituteController> {
       }
 
       final data = controller.filteredNiepidStudents;
+      
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -661,9 +664,19 @@ class InstituteDashboardView extends GetView<InstituteController> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildSectionTitle('Student Assessments'),
-              Text(
-                '${data.length} Students',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text(
+                    '${data.length} Students',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                  ),
+                  
+                  Text(
+                    '${controller.availableNiepidTeachers.length} Teachers',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                  ),
+                ],
               ),
             ],
           ),
@@ -972,6 +985,7 @@ class _StudentAssessmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<InstituteController>();
     final status = student['status'] as Map<String, dynamic>?;
 
     return Container(
@@ -1035,13 +1049,21 @@ class _StudentAssessmentCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildStatusIndicator('', "baseline"),
+              _buildStatusIndicator('Baseline', 'baseline',
+                  studentName: student['studentName'],
+                  year: controller.selectedNiepidYear.value),
               const SizedBox(width: 8),
-              _buildStatusIndicator('IEP', status?['entry']),
+              _buildStatusIndicator('IEP', status?['entry'],
+                  studentName: student['studentName'],
+                  year: controller.selectedNiepidYear.value),
               const SizedBox(width: 8),
-              _buildStatusIndicator('Term 1', status?['term1']),
+              _buildStatusIndicator('Term 1', status?['term1'],
+                  studentName: student['studentName'],
+                  year: controller.selectedNiepidYear.value),
               const SizedBox(width: 8),
-              _buildStatusIndicator('Term 2', status?['term2']),
+              _buildStatusIndicator('Term 2', status?['term2'],
+                  studentName: student['studentName'],
+                  year: controller.selectedNiepidYear.value),
             ],
           ),
         ],
@@ -1049,7 +1071,8 @@ class _StudentAssessmentCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIndicator(String label, String? status) {
+  Widget _buildStatusIndicator(String label, String? status,
+      {String? studentName, String? year}) {
     Color color;
     switch (status?.toLowerCase()) {
       case 'approve':
@@ -1071,33 +1094,57 @@ class _StudentAssessmentCard extends StatelessWidget {
     }
 
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: color.withOpacity(0.8),
-                fontWeight: FontWeight.bold,
+      child: GestureDetector(
+        onTap: () {
+          if (studentName == null) return;
+
+          if (label == 'Baseline') {
+            Get.to(() => const IepAssessmentView(), arguments: {
+              'studentName': studentName,
+              'year': year,
+              'autoFetch': true,
+            });
+          } else if (label == 'IEP' || label == 'Term 1' || label == 'Term 2') {
+            int termIndex = 0;
+            if (label == 'Term 1') termIndex = 1;
+            if (label == 'Term 2') termIndex = 2;
+
+            Get.to(() => const GoalMonitoringView(), arguments: {
+              'studentName': studentName,
+              'year': year,
+              'termIndex': termIndex,
+              'autoFetch': true,
+            });
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color.withOpacity(0.8),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              status?.capitalizeFirst ?? 'Pending',
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 2),
+              Text(
+                status?.capitalizeFirst ?? 'Pending',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -9,12 +9,30 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
 
   @override
   Widget build(BuildContext context) {
+    // Handle auto-fetch deep link from dashboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.arguments != null &&
+          Get.arguments is Map &&
+          Get.arguments['autoFetch'] == true) {
+        final studentId = Get.arguments['studentId']?.toString();
+        final yearId = Get.arguments['yearId']?.toString();
+        final term = Get.arguments['term']?.toString() ?? 'entry';
+        if (studentId != null && yearId != null) {
+          controller.handleAutoFetchGoalMonitoring(studentId, yearId, term);
+          // Set to false to prevent repeat fetches if the view rebuilds
+          Get.arguments['autoFetch'] = false;
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Goal Monitoring', style: TextStyle(color: Colors.white)),
+        title: const Text('Goal Monitoring',
+            style: TextStyle(color: Colors.white)),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: AppGradients.primaryGradient),
+          decoration:
+              const BoxDecoration(gradient: AppGradients.primaryGradient),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -35,7 +53,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   child: Padding(
                     padding: EdgeInsets.only(top: 50.0),
                     child: Text('Please select a student to monitor goals.',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+                        style: TextStyle(
+                            color: AppTheme.textSecondary, fontSize: 16)),
                   ),
                 );
               }
@@ -50,22 +69,28 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                         onPressed: controller.fetchGoalMonitoringQuestions,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Obx(() => controller.isLoadingGoalMonitoringQuestions.value
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                            : const Text('Get Assessment',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white))),
+                        child: Obx(() =>
+                            controller.isLoadingGoalMonitoringQuestions.value
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 3))
+                                : const Text('Get Assessment',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white))),
                       ),
                     ),
                   ),
                   const SizedBox(height: 32),
                   Obx(() {
-                    if (!controller.isGoalMonitoringDataLoaded.value && !controller.isLoadingGoalMonitoringQuestions.value) {
+                    if (!controller.isGoalMonitoringDataLoaded.value &&
+                        !controller.isLoadingGoalMonitoringQuestions.value) {
                       return const SizedBox.shrink();
                     }
                     return Column(
@@ -86,12 +111,16 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
         ),
       ),
       bottomNavigationBar: Obx(() {
-        if (controller.goalMonitoringDomains.isEmpty) return const SizedBox.shrink();
-        final termStatus = (controller.goalMonitoringStatuses[controller.selectedGoalMonitoringTerm.value] ?? '').toLowerCase();
+        if (controller.goalMonitoringDomains.isEmpty)
+          return const SizedBox.shrink();
+        final termStatus = (controller.goalMonitoringStatuses[
+                    controller.selectedGoalMonitoringTerm.value] ??
+                '')
+            .toLowerCase();
         final isEditable = termStatus == 'pending' || termStatus == 'rework';
-        
+
         if (!isEditable) return const SizedBox.shrink();
-        
+
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -112,50 +141,78 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Obx(() => ElevatedButton(
-                      onPressed: controller.isSavingGoalMonitoringDraft.value
-                          ? null
-                          : controller.saveGoalMonitoringDraft,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[700],
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: controller.isSavingGoalMonitoringDraft.value
-                          ? const SizedBox(height: 16, width: 16,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Draft',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                    )),
+                          onPressed:
+                              controller.isSavingGoalMonitoringDraft.value
+                                  ? null
+                                  : controller.saveGoalMonitoringDraft,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[700],
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: controller.isSavingGoalMonitoringDraft.value
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
+                              : const Text('Draft',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                        )),
                   ),
                 ),
-                Obx(() => _buildActionButton('Review', Colors.blue, controller.isAllGoalMonitoringAnswered ? () {
-                  controller.reviewGoalMonitoring();
-                } : null)),
+                Obx(() => _buildActionButton(
+                    'Review',
+                    Colors.blue,
+                    controller.isAllGoalMonitoringAnswered
+                        ? () {
+                            controller.reviewGoalMonitoring();
+                          }
+                        : null)),
                 Obx(() => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ElevatedButton(
-                      onPressed: (controller.isGoalMonitoringReviewComplete.value && !controller.isSubmittingGoalMonitoring.value)
-                          ? controller.submitGoalMonitoring
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: (controller.isGoalMonitoringReviewComplete.value && !controller.isSubmittingGoalMonitoring.value)
-                            ? Colors.green
-                            : Colors.grey.shade400,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: (controller
+                                      .isGoalMonitoringReviewComplete.value &&
+                                  !controller.isSubmittingGoalMonitoring.value)
+                              ? controller.submitGoalMonitoring
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: (controller
+                                        .isGoalMonitoringReviewComplete.value &&
+                                    !controller
+                                        .isSubmittingGoalMonitoring.value)
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: controller.isSubmittingGoalMonitoring.value
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
+                              : const Text('Submit',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                        ),
                       ),
-                      child: controller.isSubmittingGoalMonitoring.value
-                          ? const SizedBox(height: 16, width: 16,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Submit',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                )),
-                _buildActionButton('Reset', Colors.red, controller.resetGoalMonitoring),
+                    )),
+                _buildActionButton(
+                    'Reset', Colors.red, controller.resetGoalMonitoring),
               ],
             ),
           ),
@@ -185,17 +242,22 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
   Widget _buildTermTab(String label, String termKey) {
     return Expanded(
       child: Obx(() {
-        final isSelected = controller.selectedGoalMonitoringTerm.value == termKey;
+        final isSelected =
+            controller.selectedGoalMonitoringTerm.value == termKey;
         final isEnabled = controller.isTermTabEnabled(termKey);
         final status = controller.goalMonitoringStatuses[termKey] ?? 'N/A';
 
         Color statusColor = AppTheme.textSecondary;
-        if (status.toLowerCase() == 'approve') statusColor = Colors.green;
-        else if (status.toLowerCase() == 'pending') statusColor = Colors.orange;
+        if (status.toLowerCase() == 'approve')
+          statusColor = Colors.green;
+        else if (status.toLowerCase() == 'pending')
+          statusColor = Colors.orange;
         else if (status.toLowerCase() == 'rework') statusColor = Colors.red;
 
         return GestureDetector(
-          onTap: isEnabled ? () => controller.selectedGoalMonitoringTerm.value = termKey : null,
+          onTap: isEnabled
+              ? () => controller.selectedGoalMonitoringTerm.value = termKey
+              : null,
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -204,7 +266,12 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   : (isEnabled ? Colors.transparent : Colors.grey.shade100),
               borderRadius: BorderRadius.circular(8),
               boxShadow: isSelected
-                  ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                  ? [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2))
+                    ]
                   : [],
             ),
             child: Column(
@@ -222,9 +289,12 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                     Text(
                       label,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                         color: isEnabled
-                            ? (isSelected ? AppTheme.primaryColor : AppTheme.textSecondary)
+                            ? (isSelected
+                                ? AppTheme.primaryColor
+                                : AppTheme.textSecondary)
                             : Colors.grey,
                         fontSize: 14,
                       ),
@@ -259,11 +329,15 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
       ),
       child: Column(
         children: [
-          Icon(Icons.assessment_outlined, size: 64, color: AppTheme.primaryColor.withOpacity(0.3)),
+          Icon(Icons.assessment_outlined,
+              size: 64, color: AppTheme.primaryColor.withOpacity(0.3)),
           const SizedBox(height: 16),
           Text(
             '$termName Assessment',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -281,7 +355,7 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
       if (controller.isLoadingGoalMonitoringQuestions.value) {
         return const Center(child: CircularProgressIndicator());
       }
-      
+
       final domains = controller.goalMonitoringDomains;
       if (domains.isEmpty) {
         return const SizedBox.shrink();
@@ -342,17 +416,23 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   child: Image.network(
                     iconUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.assessment, color: AppTheme.primaryColor),
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.assessment,
+                        color: AppTheme.primaryColor),
                   ),
                 )
               : const Icon(Icons.assessment, color: AppTheme.primaryColor),
         ),
         title: Text(
           domainName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+          style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.textPrimary),
         ),
-        subtitle: Text('Questions: $questionsCount', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+        subtitle: Text('Questions: $questionsCount',
+            style:
+                const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         children: [
           if (questions.isNotEmpty)
             Column(
@@ -362,7 +442,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           else
             const Padding(
               padding: EdgeInsets.all(16.0),
-              child: Text('No questions available.', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text('No questions available.',
+                  style: TextStyle(color: AppTheme.textSecondary)),
             ),
         ],
       ),
@@ -415,11 +496,15 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
 
   Widget _buildGoalQuestionCard(dynamic questionData, int index) {
     final questionId = questionData['_id']?.toString() ?? 'q_$index';
-    final questionText = questionData['question']?.toString() ?? 'Unknown Question';
+    final questionText =
+        questionData['question']?.toString() ?? 'Unknown Question';
     final List<dynamic> options = questionData['options'] ?? [];
 
     return Obx(() {
-      final termStatus = (controller.goalMonitoringStatuses[controller.selectedGoalMonitoringTerm.value] ?? '').toLowerCase();
+      final termStatus = (controller.goalMonitoringStatuses[
+                  controller.selectedGoalMonitoringTerm.value] ??
+              '')
+          .toLowerCase();
       final isPending = termStatus == 'pending' || termStatus == 'rework';
       final answerData = controller.goalMonitoringAnswers[questionId] ?? {};
       final grade = answerData['mainOption']?.toString() ?? '';
@@ -439,7 +524,10 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isPending ? AppTheme.primaryColor.withValues(alpha: 0.2) : Colors.grey.shade200),
+          border: Border.all(
+              color: isPending
+                  ? AppTheme.primaryColor.withValues(alpha: 0.2)
+                  : Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -467,7 +555,10 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                     ),
                     child: Text(
                       '${index + 1}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryColor),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: AppTheme.primaryColor),
                     ),
                   ),
                   Expanded(
@@ -476,19 +567,31 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                       children: [
                         Expanded(
                           child: Text(questionText,
-                              style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary, height: 1.4)),
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.textPrimary,
+                                  height: 1.4)),
                         ),
-                        if (isPending || controller.getGoalRemarksFromAllTerms(questionId).isNotEmpty) ...[
+                        if (isPending ||
+                            controller
+                                .getGoalRemarksFromAllTerms(questionId)
+                                .isNotEmpty) ...[
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () => controller.showGoalMonitoringRemarksDialog(questionId, questionText),
+                            onTap: () =>
+                                controller.showGoalMonitoringRemarksDialog(
+                                    questionId, questionText),
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                color: AppTheme.primaryColor
+                                    .withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(isPending ? Icons.add : Icons.visibility, size: 16, color: AppTheme.primaryColor),
+                              child: Icon(
+                                  isPending ? Icons.add : Icons.visibility,
+                                  size: 16,
+                                  color: AppTheme.primaryColor),
                             ),
                           ),
                         ],
@@ -508,8 +611,11 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('SELECT GRADE',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-                            color: AppTheme.textSecondary, letterSpacing: 0.8)),
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textSecondary,
+                            letterSpacing: 0.8)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 6,
@@ -518,21 +624,31 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                         final optStr = opt.toString();
                         final isSelected = grade == optStr;
                         return GestureDetector(
-                          onTap: () => controller.setGoalMonitoringAnswer(questionId, optStr),
+                          onTap: () => controller.setGoalMonitoringAnswer(
+                              questionId, optStr),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade100,
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+                                color: isSelected
+                                    ? AppTheme.primaryColor
+                                    : Colors.grey.shade300,
                               ),
                             ),
                             child: Text(optStr,
                                 style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? Colors.white : AppTheme.textPrimary)),
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppTheme.textPrimary)),
                           ),
                         );
                       }).toList(),
@@ -541,30 +657,47 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                     if (grade == 'Partially Independent') ...[
                       const SizedBox(height: 10),
                       const Text('SELECT SCORE',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-                              color: AppTheme.textSecondary, letterSpacing: 0.8)),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textSecondary,
+                              letterSpacing: 0.8)),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
-                        children: ['Rarely(<35%)', 'Sometimes(36-70%)', 'Often(71-99%)'].map((s) {
+                        children: [
+                          'Rarely(<35%)',
+                          'Sometimes(36-70%)',
+                          'Often(71-99%)'
+                        ].map((s) {
                           final isSelected = score == s;
                           return GestureDetector(
-                            onTap: () => controller.setGoalMonitoringScore(questionId, s),
+                            onTap: () => controller.setGoalMonitoringScore(
+                                questionId, s),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: isSelected ? Colors.orange.shade600 : Colors.orange.shade50,
+                                color: isSelected
+                                    ? Colors.orange.shade600
+                                    : Colors.orange.shade50,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: isSelected ? Colors.orange.shade600 : Colors.orange.shade200,
+                                  color: isSelected
+                                      ? Colors.orange.shade600
+                                      : Colors.orange.shade200,
                                 ),
                               ),
                               child: Text(s,
                                   style: TextStyle(
                                       fontSize: 11,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                      color: isSelected ? Colors.white : Colors.orange.shade700)),
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.orange.shade700)),
                             ),
                           );
                         }).toList(),
@@ -585,17 +718,27 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   runSpacing: 8,
                   children: [
                     if (hasGrade)
-                      _buildResultChip(label: 'Grade', value: grade,
-                          bgColor: AppTheme.primaryColor.withValues(alpha: 0.08),
-                          textColor: AppTheme.primaryColor, icon: Icons.grade_outlined),
+                      _buildResultChip(
+                          label: 'Grade',
+                          value: grade,
+                          bgColor:
+                              AppTheme.primaryColor.withValues(alpha: 0.08),
+                          textColor: AppTheme.primaryColor,
+                          icon: Icons.grade_outlined),
                     if (hasScore)
-                      _buildResultChip(label: 'Score', value: score,
+                      _buildResultChip(
+                          label: 'Score',
+                          value: score,
                           bgColor: Colors.orange.shade50,
-                          textColor: Colors.orange.shade700, icon: Icons.tune),
+                          textColor: Colors.orange.shade700,
+                          icon: Icons.tune),
                     if (hasGoalType)
-                      _buildResultChip(label: 'Goal Type', value: goalType,
+                      _buildResultChip(
+                          label: 'Goal Type',
+                          value: goalType,
                           bgColor: Colors.green.shade50,
-                          textColor: Colors.green.shade700, icon: Icons.flag_outlined),
+                          textColor: Colors.green.shade700,
+                          icon: Icons.flag_outlined),
                   ],
                 ),
               ),
@@ -611,13 +754,20 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                   runSpacing: 6,
                   children: [
                     if (hasGrade)
-                      _buildResultChip(label: 'Grade', value: grade,
-                          bgColor: AppTheme.primaryColor.withValues(alpha: 0.08),
-                          textColor: AppTheme.primaryColor, icon: Icons.grade_outlined),
+                      _buildResultChip(
+                          label: 'Grade',
+                          value: grade,
+                          bgColor:
+                              AppTheme.primaryColor.withValues(alpha: 0.08),
+                          textColor: AppTheme.primaryColor,
+                          icon: Icons.grade_outlined),
                     if (hasScore)
-                      _buildResultChip(label: 'Score', value: score,
+                      _buildResultChip(
+                          label: 'Score',
+                          value: score,
                           bgColor: Colors.orange.shade50,
-                          textColor: Colors.orange.shade700, icon: Icons.tune),
+                          textColor: Colors.orange.shade700,
+                          icon: Icons.tune),
                   ],
                 ),
               ),
@@ -684,7 +834,9 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Academic Year', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Academic Year',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -697,10 +849,13 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 hint: const Text('Select Academic Year'),
-                value: controller.selectedGoalMonitoringYearId.value.isNotEmpty 
-                    ? controller.selectedGoalMonitoringYearId.value 
-                    : (controller.selectedIepYearId.value.isNotEmpty ? controller.selectedIepYearId.value : null),
-                icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
+                value: controller.selectedGoalMonitoringYearId.value.isNotEmpty
+                    ? controller.selectedGoalMonitoringYearId.value
+                    : (controller.selectedIepYearId.value.isNotEmpty
+                        ? controller.selectedIepYearId.value
+                        : null),
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    color: AppTheme.primaryColor),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
                     controller.selectedGoalMonitoringYearId.value = newValue;
@@ -708,7 +863,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
                     controller.selectedGoalMonitoringStudentId.value = '';
                   }
                 },
-                items: years.map<DropdownMenuItem<String>>((Map<String, dynamic> iep) {
+                items: years
+                    .map<DropdownMenuItem<String>>((Map<String, dynamic> iep) {
                   return DropdownMenuItem<String>(
                     value: iep['id']?.toString() ?? '',
                     child: Text(controller.formatIepYear(iep)),
@@ -724,13 +880,17 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
 
   Widget _buildStudentDropdown() {
     return Obx(() {
-      final isYearSelected = controller.selectedGoalMonitoringYearId.value.isNotEmpty || controller.selectedIepYearId.value.isNotEmpty;
+      final isYearSelected =
+          controller.selectedGoalMonitoringYearId.value.isNotEmpty ||
+              controller.selectedIepYearId.value.isNotEmpty;
       final students = controller.niepidStudentAssessments;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Student', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Student',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -743,25 +903,33 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 hint: const Text('Select Student'),
-                value: controller.selectedGoalMonitoringStudentId.value.isNotEmpty
-                    ? controller.selectedGoalMonitoringStudentId.value
-                    : null,
-                icon: Icon(Icons.keyboard_arrow_down, color: isYearSelected ? AppTheme.primaryColor : Colors.grey),
+                value:
+                    controller.selectedGoalMonitoringStudentId.value.isNotEmpty
+                        ? controller.selectedGoalMonitoringStudentId.value
+                        : null,
+                icon: Icon(Icons.keyboard_arrow_down,
+                    color:
+                        isYearSelected ? AppTheme.primaryColor : Colors.grey),
                 onChanged: isYearSelected
                     ? (String? newValue) {
                         if (newValue != null) {
-                          controller.selectedGoalMonitoringStudentId.value = newValue;
+                          controller.selectedGoalMonitoringStudentId.value =
+                              newValue;
                         }
                       }
                     : null,
-                items: students.asMap().entries.map<DropdownMenuItem<String>>((entry) {
+                items: students
+                    .asMap()
+                    .entries
+                    .map<DropdownMenuItem<String>>((entry) {
                   final index = entry.key;
                   final student = entry.value as Map<String, dynamic>;
                   final id = student['studentId']?.toString() ??
-                             student['id']?.toString() ??
-                             student['_id']?.toString() ??
-                             'index_$index';
-                  final name = student['studentName']?.toString() ?? 'Unknown Student';
+                      student['id']?.toString() ??
+                      student['_id']?.toString() ??
+                      'index_$index';
+                  final name =
+                      student['studentName']?.toString() ?? 'Unknown Student';
                   return DropdownMenuItem<String>(
                     value: id,
                     child: Text(name),
@@ -807,7 +975,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           const Divider(height: 32),
           _buildDetailRow('Age :', _getStudentAge()),
           const Divider(height: 32),
-          _buildDetailRow('Teacher :', controller.currentEducator.value?.fullName ?? 'N/A'),
+          _buildDetailRow(
+              'Teacher :', controller.currentEducator.value?.fullName ?? 'N/A'),
           // const Divider(height: 32),
           // // Overall IEP Assessment Status
           // Obx(() {
@@ -816,11 +985,10 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           //   return Column(
           //     children: [
           //       _buildDetailRow('IEP Status :', status, isStatus: true),
-                
+
           //     ],
           //   );
           // }),
-          
         ],
       ),
     );
@@ -858,7 +1026,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
             const SizedBox(height: 4),
             Text(
               termName,
-              style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  fontSize: 11, color: fg, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             Text(
@@ -878,8 +1047,8 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
   }
 
   String _getFormattedAcademicYear() {
-    final yearId = controller.selectedGoalMonitoringYearId.value.isNotEmpty 
-        ? controller.selectedGoalMonitoringYearId.value 
+    final yearId = controller.selectedGoalMonitoringYearId.value.isNotEmpty
+        ? controller.selectedGoalMonitoringYearId.value
         : controller.selectedIepYearId.value;
     final yearMap = controller.iepAcademicYears.firstWhere(
       (y) => y['id']?.toString() == yearId,
@@ -901,7 +1070,11 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
   String _getOverallIepStatus() {
     final studentId = controller.selectedGoalMonitoringStudentId.value;
     final student = controller.niepidStudentAssessments.firstWhere(
-      (s) => (s['studentId']?.toString() ?? s['id']?.toString() ?? s['_id']?.toString()) == studentId,
+      (s) =>
+          (s['studentId']?.toString() ??
+              s['id']?.toString() ??
+              s['_id']?.toString()) ==
+          studentId,
       orElse: () => <String, dynamic>{},
     );
     final statusMap = student['status'] as Map?;
@@ -919,15 +1092,17 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           width: 120,
           child: Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
           ),
         ),
         Expanded(
-          child: isStatus 
+          child: isStatus
               ? _buildStatusBadgeUI(value)
               : Text(
                   value,
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                 ),
         ),
       ],
@@ -965,6 +1140,7 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
       ),
     );
   }
+
   Widget _buildActionButton(String text, Color color, VoidCallback? onPressed) {
     return Expanded(
       child: Padding(
@@ -974,15 +1150,18 @@ class EducatorGoalMonitoringView extends GetView<EducatorController> {
           style: ElevatedButton.styleFrom(
             backgroundColor: onPressed != null ? color : Colors.grey.shade400,
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
           child: Text(text,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ),
       ),
     );
   }
-
-
 }

@@ -82,8 +82,11 @@ class IepQuestionnaireView extends GetView<InstituteController> {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(20),
-                itemCount: domains.length,
+                itemCount: domains.length + 1,
                 itemBuilder: (context, index) {
+                  if (index == domains.length) {
+                    return _buildSubjectLevelsSection();
+                  }
                   final domain = domains[index];
                   return _buildDomainCard(domain);
                 },
@@ -92,6 +95,137 @@ class IepQuestionnaireView extends GetView<InstituteController> {
           ],
         );
       }),
+    );
+  }
+
+  Widget _buildSubjectLevelsSection() {
+    return Obx(() {
+      final goals = controller.niepidStudentGoals.value;
+      final List subjects = (goals?['subject'] as List?) ?? [];
+
+      if (subjects.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Theme(
+          data: ThemeData().copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: true,
+            tilePadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.menu_book, color: AppTheme.primaryColor),
+            ),
+            title: const Text(
+              'Subject Levels',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            subtitle: const Text(
+              'Selected level for each subject',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            children: [
+              const Divider(height: 1),
+              ...subjects.map((s) => _buildSubjectLevelRow(
+                    s is Map ? Map<String, dynamic>.from(s) : {},
+                  )),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildSubjectLevelRow(Map<String, dynamic> subjectData) {
+    final subject = subjectData['subject']?.toString() ?? '';
+    final level = subjectData['Level']?.toString() ?? '';
+    final hasLevel = level.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    subject,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: hasLevel
+                    ? AppTheme.primaryColor.withOpacity(0.08)
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: hasLevel
+                      ? AppTheme.primaryColor.withOpacity(0.25)
+                      : Colors.grey.withOpacity(0.2),
+                ),
+              ),
+              child: Text(
+                hasLevel ? level : 'Not selected',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: hasLevel ? FontWeight.w600 : FontWeight.normal,
+                  color: hasLevel
+                      ? AppTheme.primaryColor
+                      : AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

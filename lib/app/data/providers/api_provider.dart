@@ -126,7 +126,7 @@ class ApiProvider extends GetConnect {
 
   Future<Response> updateEducator(String id, Map<String, dynamic> data) async {
     final headers = await _buildAuthHeaders();
-    return patch(
+    return put(
       '/users/private/educator/update/$id',
       data,
       headers: headers,
@@ -451,6 +451,15 @@ class ApiProvider extends GetConnect {
     final headers = await _buildAuthHeaders();
     return patch('/student/users/updatestudentid/$studentId', data,
         headers: headers);
+  }
+
+  Future<Response> deleteStudent(String studentId, String remark) async {
+    final headers = await _buildAuthHeaders();
+    return get(
+      '/student/users/deletestudentbyid/$studentId',
+      query: {'remark': remark},
+      headers: headers,
+    );
   }
 
   Future<Response> approveProfessional(String educatorId) async {

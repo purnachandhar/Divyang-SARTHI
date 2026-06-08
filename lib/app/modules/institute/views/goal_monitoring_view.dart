@@ -9,12 +9,31 @@ class GoalMonitoringView extends GetView<InstituteController> {
 
   @override
   Widget build(BuildContext context) {
+    // Handle auto-fetch deep link from dashboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.arguments != null &&
+          Get.arguments is Map &&
+          Get.arguments['autoFetch'] == true) {
+        final studentName = Get.arguments['studentName']?.toString();
+        final year = Get.arguments['year']?.toString();
+        final termIndex = Get.arguments['termIndex'] as int? ?? 0;
+        if (studentName != null) {
+          controller.handleAutoFetchGoalMonitoring(
+              studentName, year, termIndex);
+          // Set to false to prevent repeat fetches if the view rebuilds
+          Get.arguments['autoFetch'] = false;
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Goal Monitoring', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Goal Monitoring',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: AppGradients.primaryGradient),
+          decoration:
+              const BoxDecoration(gradient: AppGradients.primaryGradient),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
@@ -39,9 +58,10 @@ class GoalMonitoringView extends GetView<InstituteController> {
                   ),
                 );
               }
-              
+
               if (controller.selectedGoalMonitoringStudent.value == null) {
-                return _buildEmptyState('Please select a student to monitor goals.');
+                return _buildEmptyState(
+                    'Please select a student to monitor goals.');
               }
 
               return Column(
@@ -58,10 +78,14 @@ class GoalMonitoringView extends GetView<InstituteController> {
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text('Get Assessment',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                       ),
                     ),
                   ),
@@ -102,7 +126,9 @@ class GoalMonitoringView extends GetView<InstituteController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Academic Year', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Academic Year',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -116,9 +142,13 @@ class GoalMonitoringView extends GetView<InstituteController> {
                 isExpanded: true,
                 hint: const Text('Select Academic Year'),
                 value: controller.selectedGoalMonitoringYear.value,
-                icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
-                onChanged: (v) => controller.selectedGoalMonitoringYear.value = v,
-                items: years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    color: AppTheme.primaryColor),
+                onChanged: (v) =>
+                    controller.selectedGoalMonitoringYear.value = v,
+                items: years
+                    .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                    .toList(),
               ),
             ),
           ),
@@ -133,7 +163,9 @@ class GoalMonitoringView extends GetView<InstituteController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Student', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          const Text('Student',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -147,9 +179,13 @@ class GoalMonitoringView extends GetView<InstituteController> {
                 isExpanded: true,
                 hint: const Text('Select Student'),
                 value: controller.selectedGoalMonitoringStudent.value,
-                icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor),
-                onChanged: (v) => controller.selectedGoalMonitoringStudent.value = v,
-                items: students.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    color: AppTheme.primaryColor),
+                onChanged: (v) =>
+                    controller.selectedGoalMonitoringStudent.value = v,
+                items: students
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
               ),
             ),
           ),
@@ -164,11 +200,13 @@ class GoalMonitoringView extends GetView<InstituteController> {
         padding: const EdgeInsets.only(top: 50.0),
         child: Column(
           children: [
-            Icon(Icons.assessment_outlined, size: 64, color: AppTheme.primaryColor.withOpacity(0.2)),
+            Icon(Icons.assessment_outlined,
+                size: 64, color: AppTheme.primaryColor.withOpacity(0.2)),
             const SizedBox(height: 16),
             Text(message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 15)),
+                style: const TextStyle(
+                    color: AppTheme.textSecondary, fontSize: 15)),
           ],
         ),
       ),
@@ -182,22 +220,32 @@ class GoalMonitoringView extends GetView<InstituteController> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Student Details',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor)),
           const SizedBox(height: 20),
           _buildDetailRow('Student :', controller.getStudentName()),
           const Divider(height: 32),
-          _buildDetailRow('Academic Year :', controller.selectedGoalMonitoringYear.value ?? 'N/A'),
+          _buildDetailRow('Academic Year :',
+              controller.selectedGoalMonitoringYear.value ?? 'N/A'),
           const Divider(height: 32),
           _buildDetailRow('Age :', controller.getStudentAge()),
           const Divider(height: 32),
-          _buildDetailRow('Teacher :', controller.getGoalMonitoringStudentDetails()?['teacherName'] ?? 'N/A'),
+          _buildDetailRow(
+              'Teacher :',
+              controller.getGoalMonitoringStudentDetails()?['teacherName'] ??
+                  'N/A'),
           const Divider(height: 32),
           _buildIepStatusRow(),
         ],
@@ -209,8 +257,12 @@ class GoalMonitoringView extends GetView<InstituteController> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+        Text(label,
+            style: const TextStyle(
+                color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+        Text(value,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
       ],
     );
   }
@@ -219,11 +271,13 @@ class GoalMonitoringView extends GetView<InstituteController> {
     final termKeys = ['entry', 'term1', 'term2'];
     final currentTerm = termKeys[controller.activeGoalTab.value];
     final status = controller.getGoalStatus(currentTerm);
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('IEP Status :', style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+        const Text('IEP Status :',
+            style: TextStyle(
+                color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
         _buildStatusBadge(status),
       ],
     );
@@ -232,13 +286,22 @@ class GoalMonitoringView extends GetView<InstituteController> {
   Widget _buildStatusBadge(String status) {
     Color color;
     switch (status.toLowerCase()) {
-      case 'approve': color = Colors.green; break;
-      case 'submitted': color = Colors.blue; break;
-      case 'rework': color = Colors.red; break;
-      case 'pending': color = Colors.orange; break;
-      default: color = Colors.grey;
+      case 'approve':
+        color = Colors.green;
+        break;
+      case 'submitted':
+        color = Colors.blue;
+        break;
+      case 'rework':
+        color = Colors.red;
+        break;
+      case 'pending':
+        color = Colors.orange;
+        break;
+      default:
+        color = Colors.grey;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -248,7 +311,8 @@ class GoalMonitoringView extends GetView<InstituteController> {
       ),
       child: Text(
         status.toUpperCase(),
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+        style:
+            TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -276,21 +340,33 @@ class GoalMonitoringView extends GetView<InstituteController> {
       child: Obx(() {
         final isSelected = controller.activeGoalTab.value == index;
         bool isEnabled = true;
-        if (index == 1) { // Term 1
+        if (index == 1) {
+          // Term 1
           isEnabled = controller.getGoalStatus('entry').contains('approve');
-        } else if (index == 2) { // Term 2
+        } else if (index == 2) {
+          // Term 2
           isEnabled = controller.getGoalStatus('term1').contains('approve');
         }
 
         return GestureDetector(
-          onTap: isEnabled ? () => controller.activeGoalTab.value = index : null,
+          onTap:
+              isEnabled ? () => controller.activeGoalTab.value = index : null,
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isSelected ? Colors.white : (isEnabled ? Colors.transparent : Colors.grey.withOpacity(0.1)),
+              color: isSelected
+                  ? Colors.white
+                  : (isEnabled
+                      ? Colors.transparent
+                      : Colors.grey.withOpacity(0.1)),
               borderRadius: BorderRadius.circular(8),
               boxShadow: isSelected
-                  ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                  ? [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2))
+                    ]
                   : [],
             ),
             child: Opacity(
@@ -299,7 +375,9 @@ class GoalMonitoringView extends GetView<InstituteController> {
                 label,
                 style: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : AppTheme.textSecondary,
                   fontSize: 14,
                 ),
               ),
@@ -346,7 +424,10 @@ class GoalMonitoringView extends GetView<InstituteController> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: ExpansionTile(
@@ -363,13 +444,20 @@ class GoalMonitoringView extends GetView<InstituteController> {
           child: iconUrl.isNotEmpty
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(iconUrl, fit: BoxFit.cover, 
-                    errorBuilder: (c, e, s) => const Icon(Icons.assessment, color: AppTheme.primaryColor)))
+                  child: Image.network(iconUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => const Icon(Icons.assessment,
+                          color: AppTheme.primaryColor)))
               : const Icon(Icons.assessment, color: AppTheme.primaryColor),
         ),
         title: Text(domainName,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
-        subtitle: Text('${questions.length} Goals', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppTheme.textPrimary)),
+        subtitle: Text('${questions.length} Goals',
+            style:
+                const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         children: [
           if (questions.isNotEmpty)
             Column(
@@ -379,7 +467,8 @@ class GoalMonitoringView extends GetView<InstituteController> {
           else
             const Padding(
               padding: EdgeInsets.all(16.0),
-              child: Text('No goals available.', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text('No goals available.',
+                  style: TextStyle(color: AppTheme.textSecondary)),
             ),
         ],
       ),
@@ -431,7 +520,8 @@ class GoalMonitoringView extends GetView<InstituteController> {
   }
 
   Widget _buildGoalQuestionCard(dynamic questionData, int index) {
-    final questionText = questionData['question']?.toString() ?? 'Unknown Question';
+    final questionText =
+        questionData['question']?.toString() ?? 'Unknown Question';
     final List<dynamic> options = questionData['options'] ?? [];
     final answer = questionData['assessmentAnswer'];
     final goal = questionData['goalData'];
@@ -456,8 +546,10 @@ class GoalMonitoringView extends GetView<InstituteController> {
         : (goal?['goalType']?.toString() ?? '');
 
     final hasGrade = grade.isNotEmpty && grade != 'N/A' && grade != 'null';
-    final hasScore = score.isNotEmpty && score != 'N/A' && score != 'null' && score != '0';
-    final hasGoalType = goalType.isNotEmpty && goalType != 'N/A' && goalType != 'null';
+    final hasScore =
+        score.isNotEmpty && score != 'N/A' && score != 'null' && score != '0';
+    final hasGoalType =
+        goalType.isNotEmpty && goalType != 'N/A' && goalType != 'null';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -491,13 +583,19 @@ class GoalMonitoringView extends GetView<InstituteController> {
                   ),
                   child: Text(
                     '${index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryColor),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.primaryColor),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(questionText,
-                      style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary, height: 1.4)),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                          height: 1.4)),
                 ),
               ],
             ),
@@ -510,8 +608,11 @@ class GoalMonitoringView extends GetView<InstituteController> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('OPTIONS',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-                          color: AppTheme.textSecondary, letterSpacing: 0.8)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textSecondary,
+                          letterSpacing: 0.8)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
@@ -520,19 +621,28 @@ class GoalMonitoringView extends GetView<InstituteController> {
                       final optStr = opt.toString();
                       final isSelected = grade == optStr;
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade50,
+                          color: isSelected
+                              ? AppTheme.primaryColor
+                              : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : Colors.grey.shade200,
                           ),
                         ),
                         child: Text(optStr,
                             style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                color: isSelected ? Colors.white : AppTheme.textSecondary)),
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppTheme.textSecondary)),
                       );
                     }).toList(),
                   ),
@@ -549,17 +659,26 @@ class GoalMonitoringView extends GetView<InstituteController> {
                 runSpacing: 8,
                 children: [
                   if (hasGrade)
-                    _buildResultChip(label: 'Grade', value: grade,
+                    _buildResultChip(
+                        label: 'Grade',
+                        value: grade,
                         bgColor: AppTheme.primaryColor.withOpacity(0.08),
-                        textColor: AppTheme.primaryColor, icon: Icons.grade_outlined),
+                        textColor: AppTheme.primaryColor,
+                        icon: Icons.grade_outlined),
                   if (hasScore)
-                    _buildResultChip(label: 'Score', value: score,
+                    _buildResultChip(
+                        label: 'Score',
+                        value: score,
                         bgColor: Colors.orange.shade50,
-                        textColor: Colors.orange.shade700, icon: Icons.tune),
+                        textColor: Colors.orange.shade700,
+                        icon: Icons.tune),
                   if (hasGoalType)
-                    _buildResultChip(label: 'Goal Type', value: goalType,
+                    _buildResultChip(
+                        label: 'Goal Type',
+                        value: goalType,
                         bgColor: Colors.green.shade50,
-                        textColor: Colors.green.shade700, icon: Icons.flag_outlined),
+                        textColor: Colors.green.shade700,
+                        icon: Icons.flag_outlined),
                 ],
               ),
             ),
@@ -587,8 +706,14 @@ class GoalMonitoringView extends GetView<InstituteController> {
         children: [
           Icon(icon, size: 13, color: textColor),
           const SizedBox(width: 4),
-          Text('$label: ', style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.8), fontWeight: FontWeight.w500)),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+          Text('$label: ',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: textColor.withOpacity(0.8),
+                  fontWeight: FontWeight.w500)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
         ],
       ),
     );
@@ -605,16 +730,18 @@ class GoalMonitoringView extends GetView<InstituteController> {
       children: [
         Expanded(
           child: ElevatedButton(
-            onPressed: () => _showReworkDialog(), 
+            onPressed: () => _showReworkDialog(),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: Colors.red,
               elevation: 0,
               side: const BorderSide(color: Colors.red),
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Rework', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Rework',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(width: 16),
@@ -626,9 +753,11 @@ class GoalMonitoringView extends GetView<InstituteController> {
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Approve',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ),
       ],
@@ -670,7 +799,8 @@ class GoalMonitoringView extends GetView<InstituteController> {
                 maxLines: 4,
                 decoration: InputDecoration(
                   hintText: 'Enter your remarks here...',
-                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  hintStyle:
+                      TextStyle(color: Colors.grey.shade400, fontSize: 14),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
@@ -683,7 +813,8 @@ class GoalMonitoringView extends GetView<InstituteController> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                    borderSide: const BorderSide(
+                        color: AppTheme.primaryColor, width: 1.5),
                   ),
                 ),
               ),
@@ -702,7 +833,9 @@ class GoalMonitoringView extends GetView<InstituteController> {
                       ),
                       child: const Text(
                         'Cancel',
-                        style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -712,10 +845,10 @@ class GoalMonitoringView extends GetView<InstituteController> {
                       onPressed: () {
                         final remarks = remarksController.text.trim();
                         if (remarks.isEmpty) {
-                          Get.snackbar('Error', 'Please enter remarks', 
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: Colors.red.withOpacity(0.1),
-                            colorText: Colors.red);
+                          Get.snackbar('Error', 'Please enter remarks',
+                              snackPosition: SnackPosition.BOTTOM,
+                              backgroundColor: Colors.red.withOpacity(0.1),
+                              colorText: Colors.red);
                           return;
                         }
                         controller.submitRework(remarks);
@@ -724,12 +857,14 @@ class GoalMonitoringView extends GetView<InstituteController> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Submit',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),

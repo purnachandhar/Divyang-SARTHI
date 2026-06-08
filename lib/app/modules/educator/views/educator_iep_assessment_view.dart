@@ -9,6 +9,21 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
 
   @override
   Widget build(BuildContext context) {
+    // Handle auto-fetch deep link from dashboard
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.arguments != null &&
+          Get.arguments is Map &&
+          Get.arguments['autoFetch'] == true) {
+        final studentId = Get.arguments['studentId']?.toString();
+        final yearId = Get.arguments['yearId']?.toString();
+        if (studentId != null && yearId != null) {
+          controller.handleAutoFetchAssessment(studentId, yearId);
+          // Set to false to prevent repeat fetches if the view rebuilds
+          Get.arguments['autoFetch'] = false;
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -71,6 +86,19 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                   ),
                   const SizedBox(height: 32),
                   _buildDomainsList(),
+                  Obx(() {
+                    // Only show subjects once assessment is fetched.
+                    if (controller.assessmentDomains.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 32),
+                        _buildSubjectLevelsSection(),
+                      ],
+                    );
+                  }),
                 ],
               );
             }),
@@ -365,8 +393,45 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
               'Teacher :', controller.currentEducator.value?.fullName ?? 'N/A'),
           const Divider(height: 32),
           _buildDetailRow('IEP Status :', _getIepStatus()),
+          const Divider(height: 32),
+          Obx(() => _buildReworkCommentsCard()),
         ],
       ),
+    );
+  }
+
+  Widget _buildReworkCommentsCard() {
+    final statusMap = controller.assessmentStatus;
+    final commentsMap = controller.assessmentComments;
+
+    final entryStatus = statusMap['entry']?.toString().toLowerCase() ?? '';
+    final entryComment = commentsMap['entry']?.toString() ?? '';
+
+    if (entryStatus != 'rework' ||
+        entryComment.isEmpty ||
+        entryComment == 'null') {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            'Comments:',
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          child: Text(
+            entryComment,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+          ),
+        ),
+      ],
     );
   }
 
@@ -472,6 +537,13 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
   }
 
   String _getIepStatus() {
+    // Prioritize global assessment status from goals/drafts
+    if (controller.assessmentStatus.isNotEmpty) {
+      final entry =
+          controller.assessmentStatus['entry']?.toString() ?? 'Pending';
+      return entry.toUpperCase();
+    }
+
     final details = controller.selectedIepStudentDetails;
     final statusMap = details?['status'] as Map<String, dynamic>?;
     if (statusMap != null) {
@@ -501,6 +573,145 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
           ),
         ),
       ],
+    );
+  }
+
+  // Subjects shown with a "Subject Level" dropdown each.
+  static const List<String> _subjects = [
+    'Maths',
+    'Language',
+    'EVS',
+    'Functional',
+    'Communication',
+    'Life Skills',
+    'NIOS',
+    'Digital Library',
+  ];
+
+  // Dropdown values from the curriculum level list.
+  static const List<String> _subjectLevelOptions = [
+    'Nursery 3-6 years',
+    'Level 1 6-14 years',
+    'Level 2 6-14 years (on completion of Level 1)',
+    'Level 3 6-14 years (on completion of Level 2)',
+    'Functional',
+    'Adaptive Curriculum',
+    'Prevocational - 14-18',
+    'Level A',
+    'Not Applicable',
+  ];
+
+  Widget _buildSubjectLevelsSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.all(16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.menu_book, color: AppTheme.primaryColor),
+        ),
+        title: const Text(
+          'Subject Levels',
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.textPrimary),
+        ),
+        subtitle: const Text(
+          'Select a level for each subject',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+        ),
+        children: _subjects.map(_buildSubjectLevelRow).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSubjectLevelRow(String subject) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                subject,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: Obx(() {
+                final selected = controller.subjectLevels[subject];
+                return DropdownButton<String>(
+                  isExpanded: true,
+                  hint: const Text('Select Subject Level',
+                      style: TextStyle(fontSize: 14)),
+                  value: (selected != null && selected.isNotEmpty)
+                      ? selected
+                      : null,
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: AppTheme.primaryColor),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      controller.setSubjectLevel(subject, newValue);
+                    }
+                  },
+                  items: _subjectLevelOptions
+                      .map<DropdownMenuItem<String>>((String level) {
+                    return DropdownMenuItem<String>(
+                      value: level,
+                      child: Text(level,
+                          style: const TextStyle(fontSize: 14),
+                          overflow: TextOverflow.ellipsis),
+                    );
+                  }).toList(),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -687,19 +898,38 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
     );
   }
 
+  // Reads a question's numeric "priority" (defaults to a large number so
+  // questions without a priority sort to the end).
+  int _questionPriority(dynamic q) {
+    if (q is! Map) return 1 << 30;
+    final p = q['priority'];
+    if (p is int) return p;
+    final parsed = int.tryParse(p?.toString() ?? '');
+    return parsed ?? (1 << 30);
+  }
+
   List<Widget> _buildQuestionCardsWithSubdomains(List<dynamic> questions) {
     final widgets = <Widget>[];
-    String currentSubdomain = '';
 
-    // Reverse the questions list as requested
-    final reversedQuestions = questions.reversed.toList();
+    // Group questions by subdomain.
+    final grouped = <String, List<dynamic>>{};
+    for (final q in questions) {
+      final subdomain = (q is Map ? q['subdomain']?.toString() : null) ?? '';
+      final key = subdomain.isEmpty ? 'Other' : subdomain;
+      grouped.putIfAbsent(key, () => []).add(q);
+    }
 
-    for (int i = 0; i < reversedQuestions.length; i++) {
-      final q = reversedQuestions[i];
-      final subdomain = q['subdomain']?.toString() ?? '';
+    // Show subdomains in Z to A (descending) order.
+    final subdomains = grouped.keys.toList()
+      ..sort((a, b) => b.toLowerCase().compareTo(a.toLowerCase()));
 
-      if (subdomain.isNotEmpty && subdomain != currentSubdomain) {
-        currentSubdomain = subdomain;
+    int questionIndex = 0;
+    for (final subdomain in subdomains) {
+      // Within each subdomain, sort questions by "priority" (1, 2, 3, ...).
+      final subQuestions = grouped[subdomain]!
+        ..sort((a, b) => _questionPriority(a).compareTo(_questionPriority(b)));
+
+      if (subdomain != 'Other') {
         widgets.add(
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -716,7 +946,7 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    currentSubdomain,
+                    subdomain,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
@@ -729,7 +959,11 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
           ),
         );
       }
-      widgets.add(_buildQuestionCard(q, i));
+
+      for (final q in subQuestions) {
+        widgets.add(_buildQuestionCard(q, questionIndex));
+        questionIndex++;
+      }
     }
     return widgets;
   }

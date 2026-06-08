@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../../../data/models/student_model.dart';
 import '../../../data/models/educator_model.dart';
 import '../../../data/providers/api_provider.dart';
@@ -43,6 +46,86 @@ class EducatorController extends GetxController {
   // IEP Assessment Screen state
   var selectedIepAssessmentStudentId = ''.obs;
   var selectedIepLevel = ''.obs;
+
+  // Subject level selections (subject name -> selected level)
+  // Order matters: drives the "srNo" sent to the backend.
+  static const List<String> subjectOrder = [
+    'Maths',
+    'Language',
+    'EVS',
+    'Functional',
+    'Communication',
+    'Life Skills',
+    'NIOS',
+    'Digital Library',
+  ];
+  var subjectLevels = <String, String>{}.obs;
+  var isSavingSubjectLevel = false.obs;
+
+  // Build the subject array in the backend's expected shape.
+  List<Map<String, dynamic>> _buildSubjectPayload() {
+    return List.generate(subjectOrder.length, (i) {
+      final name = subjectOrder[i];
+      return {
+        "srNo": i + 1,
+        "subject": name,
+        "Level": subjectLevels[name] ?? '',
+      };
+    });
+  }
+
+  Future<void> setSubjectLevel(String subject, String level) async {
+    subjectLevels[subject] = level;
+    subjectLevels.refresh();
+    await _saveSubjectLevels();
+  }
+
+  Future<void> _saveSubjectLevels() async {
+    final studentDetails = selectedIepStudentDetails;
+    final studentId = studentDetails?['studentId']?.toString() ??
+        studentDetails?['id']?.toString() ??
+        studentDetails?['_id']?.toString();
+
+    if (studentId == null || studentId.isEmpty) {
+      Get.snackbar('Error', 'Invalid student ID',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+      return;
+    }
+
+    final payload = {
+      "studentId": studentId,
+      "year": selectedIepYearId.value,
+      "subject": _buildSubjectPayload(),
+    };
+
+    debugPrint('DEBUG saveSubjectLevels payload: $payload');
+
+    isSavingSubjectLevel.value = true;
+    try {
+      final response = await _apiProvider.saveStudentGoals(payload);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('DEBUG saveSubjectLevels success: ${response.body}');
+        Get.snackbar('Success', 'Assessment updated successfully',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
+      } else {
+        Get.snackbar('Error', 'Failed to save subject level: ${response.body}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Save subject level error: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+    } finally {
+      isSavingSubjectLevel.value = false;
+    }
+  }
 
   // Goal Monitoring Screen state
   var selectedGoalMonitoringYearId = ''.obs;
@@ -88,6 +171,9 @@ class EducatorController extends GetxController {
   var isSavingDraft = false.obs;
   var assessmentAnswers = <String, Map<String, dynamic>>{}.obs;
   var goalRemarks = <String, String>{}.obs; // questionId -> remarks
+  var assessmentStatus =
+      <String, dynamic>{}.obs; // global status (entry, term1, etc)
+  var assessmentComments = <String, dynamic>{}.obs; // global comments
   var usedPriorities = <int>{}.obs;
   var isReviewComplete = false.obs;
   var isSubmitting = false.obs;
@@ -497,41 +583,26 @@ class EducatorController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.body;
+        // Log once so the field mapping below can be tuned to the real shape.
+        print('DEBUG student-overview response: $data');
 
-        final pdf = pw.Document();
-        pdf.addPage(
-          pw.Page(
-            build: (pw.Context context) {
-              return pw.Center(
-                child: pw.Text('$title Report\n\nData:\n$data'),
-              );
-            },
-          ),
+        final pdf = await _buildIepReportPdf(
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
+          term: term,
+          goalTypeFilter: goalType,
+          withRemarks: withRemarks,
         );
 
-        // Use app-scoped storage (no runtime permission needed on Android 11+)
-        Directory? directory;
-        if (Platform.isAndroid) {
-          directory = await getExternalStorageDirectory();
-        } else {
-          directory = await getApplicationDocumentsDirectory();
-        }
+        final file = await _savePdfToDownloads(pdf, studentId, term);
+        if (file == null) return;
 
-        if (directory == null) {
-          Get.snackbar('Error', 'Could not access storage directory');
-          return;
-        }
-
-        final fileName =
-            'Student_${term}_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final path = '${directory.path}/$fileName';
-        final file = File(path);
-        await file.writeAsBytes(await pdf.save());
-
-        print('PDF saved to: $path');
-        Get.snackbar('Success', 'Report saved: $fileName',
+        print('PDF saved to: ${file.path}');
+        Get.snackbar('Success',
+            'Report saved to Downloads:\n${file.path.split('/').last}',
             snackPosition: SnackPosition.BOTTOM,
-            duration: const Duration(seconds: 4));
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 5));
       } else {
         Get.snackbar('Error', 'Failed to fetch data: ${response.statusCode}',
             snackPosition: SnackPosition.BOTTOM,
@@ -543,7 +614,424 @@ class EducatorController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red,
           colorText: Colors.white);
-      print("Getting Error for PDF ${e}");
+      print("Getting Error for PDF $e");
+    }
+  }
+
+  // ─── PDF helpers ──────────────────────────────────────────────────────────
+
+  /// Reads the first non-empty value among [keys] from [map].
+  String _readField(Map map, List<String> keys, {String fallback = '-'}) {
+    for (final k in keys) {
+      final v = map[k];
+      if (v != null &&
+          v.toString().trim().isNotEmpty &&
+          v.toString() != 'null') {
+        return v.toString().trim();
+      }
+    }
+    return fallback;
+  }
+
+  /// Extracts a flat list of goal rows grouped by domain from the overview
+  /// response. Defensive about the exact JSON shape.
+  List<Map<String, dynamic>> _extractGoalGroups(Map<String, dynamic> data) {
+    final groups = <Map<String, dynamic>>[];
+
+    dynamic goalsRoot = data['goals'] ??
+        data['goalList'] ??
+        data['domains'] ??
+        data['report'] ??
+        data['data'];
+
+    void addGoal(String domain, Map goal) {
+      final domainGroup = groups.firstWhere(
+        (g) => g['domain'] == domain,
+        orElse: () {
+          final g = <String, dynamic>{'domain': domain, 'goals': <Map>[]};
+          groups.add(g);
+          return g;
+        },
+      );
+      (domainGroup['goals'] as List).add(goal);
+    }
+
+    Map<String, dynamic> normalizeGoal(Map g) {
+      return {
+        'name':
+            _readField(g, ['goalName', 'question', 'name', 'goal'], fallback: ''),
+        'grade': _readField(g, ['grade', 'mainOption', 'option', 'level'],
+            fallback: '-'),
+        'score': _readField(g, ['score', 'checkboxValue'], fallback: '-'),
+        'goalType': _readField(g, ['goalType', 'type'], fallback: '-'),
+        'remarks': _readField(g, ['remarks', 'remark', 'comment'], fallback: '-'),
+      };
+    }
+
+    if (goalsRoot is List) {
+      for (final item in goalsRoot) {
+        if (item is Map) {
+          final domain = _readField(
+              item, ['domain', 'domainName', 'subdomain', 'title'],
+              fallback: '');
+          final inner = item['goals'] ?? item['questions'] ?? item['items'];
+          if (inner is List) {
+            for (final g in inner) {
+              if (g is Map) {
+                addGoal(domain.isEmpty ? 'Goals' : domain, normalizeGoal(g));
+              }
+            }
+          } else {
+            addGoal(domain.isEmpty ? 'Goals' : domain, normalizeGoal(item));
+          }
+        }
+      }
+    } else if (goalsRoot is Map) {
+      goalsRoot.forEach((domainKey, value) {
+        final domain = domainKey.toString();
+        if (value is List) {
+          for (final g in value) {
+            if (g is Map) addGoal(domain, normalizeGoal(g));
+          }
+        } else if (value is Map) {
+          for (final termKey in ['entry', 'term1', 'term2']) {
+            final list = value[termKey];
+            if (list is List) {
+              for (final g in list) {
+                if (g is Map) addGoal(domain, normalizeGoal(g));
+              }
+            }
+          }
+        }
+      });
+    }
+
+    return groups;
+  }
+
+  static const List<String> _romanNumerals = [
+    'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', //
+    'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX',
+  ];
+
+  String _toRoman(int n) =>
+      (n >= 1 && n <= _romanNumerals.length) ? _romanNumerals[n - 1] : '$n';
+
+  String _reportYearFallback() {
+    final yearId = selectedStudentReportYearId.value;
+    final yearMap = iepAcademicYears.firstWhere(
+      (y) => y['id']?.toString() == yearId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (yearMap.isNotEmpty) return formatIepYear(yearMap);
+    return '-';
+  }
+
+  Future<pw.Document> _buildIepReportPdf(
+    Map<String, dynamic> data, {
+    required String term,
+    required String goalTypeFilter,
+    required bool withRemarks,
+  }) async {
+    final pdf = pw.Document();
+
+    final schoolName = _readField(
+        data, ['schoolName', 'organisationName', 'instituteName'],
+        fallback: currentEducator.value?.organisation?.schoolName ?? 'School');
+
+    final academicYear = _readField(
+        data, ['academicYear', 'year', 'yearName'],
+        fallback: _reportYearFallback());
+    final studentName = _readField(data, ['studentName', 'name'], fallback: '-');
+    final className =
+        _readField(data, ['class', 'className', 'grade'], fallback: '-');
+    final teacherName = _readField(data, ['teacherName', 'teacher'],
+        fallback: currentEducator.value?.fullName ?? '-');
+    final enrollmentNo = _readField(data,
+        ['enrollmentNo', 'enrollmentNumber', 'enrollment', 'admissionNo'],
+        fallback: '-');
+
+    final dateStr = _formatToday();
+
+    pw.MemoryImage? logo;
+    try {
+      final bytes = await rootBundle.load('assets/images/logo.png');
+      logo = pw.MemoryImage(bytes.buffer.asUint8List());
+    } catch (_) {
+      logo = null;
+    }
+
+    var goalGroups = _extractGoalGroups(data);
+
+    if (goalTypeFilter != 'Both') {
+      for (final g in goalGroups) {
+        (g['goals'] as List).retainWhere((goal) =>
+            (goal['goalType'] ?? '').toString().toLowerCase() ==
+            goalTypeFilter.toLowerCase());
+      }
+      goalGroups =
+          goalGroups.where((g) => (g['goals'] as List).isNotEmpty).toList();
+    }
+
+    final headers = <String>[
+      'No.',
+      'Goal Name',
+      'Grade',
+      'Score',
+      'Goal Type',
+      if (withRemarks) 'Remarks',
+    ];
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(32, 28, 32, 28),
+        footer: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text(
+            'https://dashboard.divyangsarthi.in/all-reports',
+            style: pw.TextStyle(fontSize: 8, color: PdfColors.blue700),
+          ),
+        ),
+        build: (context) => [
+          pw.Text(dateStr, style: const pw.TextStyle(fontSize: 9)),
+          pw.SizedBox(height: 16),
+          if (logo != null)
+            pw.Center(child: pw.Image(logo, width: 90))
+          else
+            pw.Center(
+              child: pw.Text('DIVYANG SARTHI',
+                  style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue800)),
+            ),
+          pw.SizedBox(height: 18),
+          pw.Center(
+            child: pw.Text(schoolName, style: const pw.TextStyle(fontSize: 20)),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Text(
+              'IEP for Academic Year: $academicYear | Term: $term',
+              style: const pw.TextStyle(fontSize: 11),
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Divider(thickness: 0.8, color: PdfColors.grey400),
+          pw.SizedBox(height: 8),
+          _detailLine('Student: ', studentName),
+          _detailLine('Class: ', className),
+          _detailLine('Teacher: ', teacherName),
+          _detailLine('Enrollment No: ', enrollmentNo),
+          pw.SizedBox(height: 16),
+          _buildGoalsTable(headers, goalGroups, withRemarks),
+        ],
+      ),
+    );
+
+    return pdf;
+  }
+
+  pw.Widget _detailLine(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 4),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          children: [
+            pw.TextSpan(text: label, style: const pw.TextStyle(fontSize: 11)),
+            pw.TextSpan(
+                text: value,
+                style:
+                    pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildGoalsTable(
+    List<String> headers,
+    List<Map<String, dynamic>> goalGroups,
+    bool withRemarks,
+  ) {
+    final colCount = headers.length;
+
+    final columnWidths = <int, pw.TableColumnWidth>{
+      0: const pw.FixedColumnWidth(28),
+      1: const pw.FlexColumnWidth(4),
+      2: const pw.FlexColumnWidth(1.6),
+      3: const pw.FlexColumnWidth(1.4),
+      4: const pw.FlexColumnWidth(1.6),
+      if (withRemarks) 5: const pw.FlexColumnWidth(1.4),
+    };
+
+    final rows = <pw.TableRow>[];
+
+    rows.add(
+      pw.TableRow(
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Text('Goals',
+                style:
+                    pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+          ),
+          for (int i = 1; i < colCount; i++) pw.SizedBox(),
+        ],
+      ),
+    );
+
+    rows.add(
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+        children: headers
+            .map((h) => pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(h,
+                      textAlign: h == 'Goal Name'
+                          ? pw.TextAlign.left
+                          : pw.TextAlign.center,
+                      style: pw.TextStyle(
+                          fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                ))
+            .toList(),
+      ),
+    );
+
+    if (goalGroups.isEmpty) {
+      rows.add(
+        pw.TableRow(children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Text('No goals found.',
+                style: const pw.TextStyle(fontSize: 10)),
+          ),
+          for (int i = 1; i < colCount; i++) pw.SizedBox(),
+        ]),
+      );
+    }
+
+    for (int d = 0; d < goalGroups.length; d++) {
+      final group = goalGroups[d];
+      final domain = group['domain']?.toString() ?? '';
+      final goals = (group['goals'] as List);
+
+      rows.add(
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey50),
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(6),
+              child: pw.Text('${_toRoman(d + 1)}. $domain',
+                  style: pw.TextStyle(
+                      fontSize: 10.5, fontWeight: pw.FontWeight.bold)),
+            ),
+            for (int i = 1; i < colCount; i++) pw.SizedBox(),
+          ],
+        ),
+      );
+
+      for (int gi = 0; gi < goals.length; gi++) {
+        final goal = goals[gi] as Map;
+        rows.add(
+          pw.TableRow(
+            children: [
+              _cell('${gi + 1}', align: pw.TextAlign.center),
+              _cell(goal['name']?.toString() ?? '-', align: pw.TextAlign.left),
+              _cell(goal['grade']?.toString() ?? '-',
+                  align: pw.TextAlign.center),
+              _cell(goal['score']?.toString() ?? '-',
+                  align: pw.TextAlign.center),
+              _cell(goal['goalType']?.toString() ?? '-',
+                  align: pw.TextAlign.center),
+              if (withRemarks)
+                _cell(goal['remarks']?.toString() ?? '-',
+                    align: pw.TextAlign.center),
+            ],
+          ),
+        );
+      }
+    }
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.5),
+      columnWidths: columnWidths,
+      children: rows,
+    );
+  }
+
+  pw.Widget _cell(String text, {pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child:
+          pw.Text(text, textAlign: align, style: const pw.TextStyle(fontSize: 9.5)),
+    );
+  }
+
+  String _formatToday() {
+    final now = DateTime.now();
+    final dd = now.day.toString().padLeft(2, '0');
+    final mm = now.month.toString().padLeft(2, '0');
+    final yyyy = now.year.toString();
+    return '$dd/$mm/$yyyy';
+  }
+
+  /// Saves [pdf] into the device's public Downloads folder, requesting
+  /// storage permission as required by the Android version.
+  Future<File?> _savePdfToDownloads(
+      pw.Document pdf, String studentId, String term) async {
+    Directory? directory;
+
+    if (Platform.isAndroid) {
+      final granted = await _ensureStoragePermission();
+      if (!granted) {
+        Get.snackbar('Permission required',
+            'Storage permission is needed to save the report.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+        return null;
+      }
+
+      const downloadsPath = '/storage/emulated/0/Download';
+      directory = Directory(downloadsPath);
+      if (!await directory.exists()) {
+        directory = await getExternalStorageDirectory();
+      }
+    } else {
+      directory = await getDownloadsDirectory() ??
+          await getApplicationDocumentsDirectory();
+    }
+
+    if (directory == null) {
+      Get.snackbar('Error', 'Could not access storage directory',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+      return null;
+    }
+
+    final fileName =
+        'IEP_Report_${term}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final file = File('${directory.path}/$fileName');
+    await file.writeAsBytes(await pdf.save());
+    return file;
+  }
+
+  Future<bool> _ensureStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final sdkInt = androidInfo.version.sdkInt;
+
+    if (sdkInt >= 30) {
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      final status = await Permission.manageExternalStorage.request();
+      if (status.isGranted) return true;
+      return (await Permission.storage.request()).isGranted;
+    } else {
+      return (await Permission.storage.request()).isGranted;
     }
   }
 
@@ -621,6 +1109,16 @@ class EducatorController extends GetxController {
         try {
           final body = draftResponse.body;
           if (body is Map) {
+            // Populate global status and comments for UI display
+            if (body['status'] is Map) {
+              assessmentStatus.value =
+                  Map<String, dynamic>.from(body['status']);
+            }
+            if (body['comments'] is Map) {
+              assessmentComments.value =
+                  Map<String, dynamic>.from(body['comments']);
+            }
+
             // Build helper map for question options — use allAssessmentDomains so
             // options are resolved even when the age-group filter hides some questions.
             final qOptionsMap = <String, List<dynamic>>{};
@@ -2480,6 +2978,22 @@ class EducatorController extends GetxController {
     } finally {
       isLoadingCareGiverMeeting.value = false;
     }
+  }
+
+  Future<void> handleAutoFetchAssessment(
+      String studentId, String yearId) async {
+    selectedIepYearId.value = yearId;
+    selectedIepAssessmentStudentId.value = studentId;
+    autoSetIepLevel();
+    await fetchAssessmentQuestions();
+  }
+
+  Future<void> handleAutoFetchGoalMonitoring(
+      String studentId, String yearId, String term) async {
+    selectedGoalMonitoringYearId.value = yearId;
+    selectedGoalMonitoringStudentId.value = studentId;
+    selectedGoalMonitoringTerm.value = term;
+    await fetchGoalMonitoringQuestions();
   }
 
   void logout() async {

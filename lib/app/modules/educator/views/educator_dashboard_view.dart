@@ -656,6 +656,7 @@ class EducatorDashboardView extends GetView<EducatorController> {
       }
 
       final students = controller.niepidStudentAssessments;
+      final yearId = controller.selectedIepYearId.value;
       if (students.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -671,7 +672,7 @@ class EducatorDashboardView extends GetView<EducatorController> {
             itemCount: students.length,
             itemBuilder: (context, index) {
               final student = students[index] as Map<String, dynamic>;
-              return _buildStudentAssessmentCard(student);
+              return _buildStudentAssessmentCard(student, yearId);
             },
           ),
           const SizedBox(height: 32),
@@ -680,8 +681,13 @@ class EducatorDashboardView extends GetView<EducatorController> {
     });
   }
 
-  Widget _buildStudentAssessmentCard(Map<String, dynamic> student) {
+  Widget _buildStudentAssessmentCard(
+      Map<String, dynamic> student, String yearId) {
     final status = student['status'] as Map<String, dynamic>? ?? {};
+    final studentId = student['studentId']?.toString() ??
+        student['id']?.toString() ??
+        student['_id']?.toString() ??
+        '';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -734,19 +740,21 @@ class EducatorDashboardView extends GetView<EducatorController> {
           Row(
             children: [
               Expanded(
-                  child:
-                      _buildAssessmentStatusBadge('Baseline', status['entry'])),
+                  child: _buildAssessmentStatusBadge(
+                      'Baseline', status['entry'],
+                      studentId: studentId, yearId: yearId)),
               const SizedBox(width: 8),
               Expanded(
-                  child: _buildAssessmentStatusBadge('IEP', status['entry'])),
+                  child: _buildAssessmentStatusBadge('IEP', status['entry'],
+                      studentId: studentId, yearId: yearId)),
               const SizedBox(width: 8),
               Expanded(
-                  child:
-                      _buildAssessmentStatusBadge('Term 1', status['term1'])),
+                  child: _buildAssessmentStatusBadge('Term 1', status['term1'],
+                      studentId: studentId, yearId: yearId)),
               const SizedBox(width: 8),
               Expanded(
-                  child:
-                      _buildAssessmentStatusBadge('Term 2', status['term2'])),
+                  child: _buildAssessmentStatusBadge('Term 2', status['term2'],
+                      studentId: studentId, yearId: yearId)),
             ],
           ),
         ],
@@ -754,7 +762,8 @@ class EducatorDashboardView extends GetView<EducatorController> {
     );
   }
 
-  Widget _buildAssessmentStatusBadge(String title, String? statusStr) {
+  Widget _buildAssessmentStatusBadge(String title, String? statusStr,
+      {String? studentId, String? yearId}) {
     final String status = statusStr?.toLowerCase() ?? 'pending';
 
     Color bgColor = Colors.grey.withOpacity(0.1);
@@ -774,35 +783,60 @@ class EducatorDashboardView extends GetView<EducatorController> {
       textColor = Colors.redAccent;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: textColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: () {
+        if (studentId != null && yearId != null) {
+          if (title == 'Baseline') {
+            Get.toNamed('/educator-iep-assessment', arguments: {
+              'studentId': studentId,
+              'yearId': yearId,
+              'autoFetch': true,
+            });
+          } else if (title == 'IEP' || title == 'Term 1' || title == 'Term 2') {
+            final termMap = {
+              'IEP': 'entry',
+              'Term 1': 'term1',
+              'Term 2': 'term2',
+            };
+            Get.toNamed('/educator-goal-monitoring', arguments: {
+              'studentId': studentId,
+              'yearId': yearId,
+              'term': termMap[title],
+              'autoFetch': true,
+            });
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: textColor.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            (statusStr ?? 'Pending').toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: textColor,
+            const SizedBox(height: 4),
+            Text(
+              (statusStr ?? 'Pending').toUpperCase(),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

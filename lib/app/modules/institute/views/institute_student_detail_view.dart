@@ -175,7 +175,7 @@ class InstituteStudentDetailView extends StatelessWidget {
                     const _InfoRow(label: 'Country', value: 'India'),
                   ]),
                   const SizedBox(height: 32),
-                  _buildActionButtons(data),
+                  _buildActionButtons(data, controller),
                 ],
               ),
             ),
@@ -287,7 +287,8 @@ class InstituteStudentDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(Map<String, dynamic> data) {
+  Widget _buildActionButtons(
+      Map<String, dynamic> data, InstituteController controller) {
     return Row(
       children: [
         Expanded(
@@ -314,9 +315,8 @@ class InstituteStudentDetailView extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
-            onPressed: () =>
-                Get.snackbar('Chat', 'Opening chat with Parent...'),
-            icon: const Icon(Icons.chat_bubble_outline, color: Colors.green),
+            onPressed: () => controller.deleteStudent(data['_id'] ?? ''),
+            icon: const Icon(Icons.delete, color: Colors.red),
           ),
         ),
       ],

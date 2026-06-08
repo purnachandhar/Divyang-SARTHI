@@ -1,9 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/models/professional_registration_model.dart';
@@ -794,8 +798,38 @@ class InstituteController extends GetxController {
         snackPosition: SnackPosition.BOTTOM);
   }
 
+  void handleAutoFetchIepAssessment(String? studentName, String? year) {
+    if (year != null && availableNiepidYears.contains(year)) {
+      selectedNiepidYear.value = year;
+    }
+
+    if (studentName != null) {
+      // Find the student in the list
+      final student =
+          availableNiepidStudents.firstWhereOrNull((s) => s == studentName);
+      if (student != null) {
+        updateSelectedStudent(student);
+        // After updating student, show the result card
+        showAssessmentResult.value = true;
+      }
+    }
+  }
+
   void viewTransferDetail(Map<String, dynamic> studentData) {
     Get.toNamed('/institute-transfer-detail', arguments: studentData);
+  }
+
+  Future<void> handleAutoFetchGoalMonitoring(
+      String? studentName, String? year, int termIndex) async {
+    if (year != null && availableNiepidYears.contains(year)) {
+      selectedGoalMonitoringYear.value = year;
+    }
+
+    if (studentName != null && availableNiepidStudents.contains(studentName)) {
+      selectedGoalMonitoringStudent.value = studentName;
+      activeGoalTab.value = termIndex;
+      await fetchGoalMonitoring();
+    }
   }
 
   void goToSearchTransfer() {
@@ -1348,8 +1382,6 @@ class InstituteController extends GetxController {
       if (goalsResponse.statusCode == 200) {
         niepidStudentGoals.value = goalsResponse.body;
         print('DEBUG: Student Goals fetched successfully');
-        
-      
       } else {
         print(
             'DEBUG: No existing goals found or error fetching goals: ${goalsResponse.statusText}');
@@ -1784,7 +1816,7 @@ class InstituteController extends GetxController {
                 List<Map<String, dynamic>>.from(qResponse.body['domains']));
           }
         }
-        await fetchTermStudentGoals(0);
+        await fetchTermStudentGoals(activeGoalTab.value);
         showGoalMonitoringDetails.value = true;
       } else {
         Get.snackbar('Error', 'Failed to fetch goal monitoring data',
@@ -2151,40 +2183,25 @@ class InstituteController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.body;
+        // Log once so the field mapping below can be tuned to the real shape.
+        print('DEBUG student-overview response: $data');
 
-        final pdf = pw.Document();
-        pdf.addPage(
-          pw.Page(
-            build: (pw.Context context) {
-              return pw.Center(
-                child: pw.Text('$title Report\n\nData:\n$data'),
-              );
-            },
-          ),
+        final pdf = await _buildIepReportPdf(
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
+          term: term,
+          goalTypeFilter: goalType,
+          withRemarks: withRemarks,
         );
 
-        Directory? directory;
-        if (Platform.isAndroid) {
-          directory = await getExternalStorageDirectory();
-        } else {
-          directory = await getApplicationDocumentsDirectory();
-        }
+        final file = await _savePdfToDownloads(pdf, studentId, term);
+        if (file == null) return;
 
-        if (directory == null) {
-          Get.snackbar('Error', 'Could not access storage directory');
-          return;
-        }
-
-        final fileName =
-            'Student_${term}_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final path = '${directory.path}/$fileName';
-        final file = File(path);
-        await file.writeAsBytes(await pdf.save());
-
-        print('PDF saved to: $path');
-        Get.snackbar('Success', 'Report saved: $fileName',
+        print('PDF saved to: ${file.path}');
+        Get.snackbar('Success', 'Report saved to Downloads:\n${file.path.split('/').last}',
             snackPosition: SnackPosition.BOTTOM,
-            duration: const Duration(seconds: 4));
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 5));
       } else {
         Get.snackbar('Error', 'Failed to fetch data: ${response.statusCode}',
             snackPosition: SnackPosition.BOTTOM,
@@ -2197,6 +2214,435 @@ class InstituteController extends GetxController {
           backgroundColor: Colors.red,
           colorText: Colors.white);
       print("Getting Error for PDF $e");
+    }
+  }
+
+  // ─── PDF helpers ──────────────────────────────────────────────────────────
+
+  /// Reads the first non-empty value among [keys] from [map].
+  String _readField(Map map, List<String> keys, {String fallback = '-'}) {
+    for (final k in keys) {
+      final v = map[k];
+      if (v != null && v.toString().trim().isNotEmpty && v.toString() != 'null') {
+        return v.toString().trim();
+      }
+    }
+    return fallback;
+  }
+
+  /// Extracts a flat list of goal rows grouped by domain from the overview
+  /// response. Defensive about the exact JSON shape.
+  List<Map<String, dynamic>> _extractGoalGroups(Map<String, dynamic> data) {
+    final groups = <Map<String, dynamic>>[];
+
+    // Find the goals container under a few likely keys.
+    dynamic goalsRoot = data['goals'] ??
+        data['goalList'] ??
+        data['domains'] ??
+        data['report'] ??
+        data['data'];
+
+    void addGoal(String domain, Map goal) {
+      final domainGroup = groups.firstWhere(
+        (g) => g['domain'] == domain,
+        orElse: () {
+          final g = <String, dynamic>{'domain': domain, 'goals': <Map>[]};
+          groups.add(g);
+          return g;
+        },
+      );
+      (domainGroup['goals'] as List).add(goal);
+    }
+
+    Map<String, dynamic> normalizeGoal(Map g) {
+      return {
+        'name': _readField(g, ['goalName', 'question', 'name', 'goal'], fallback: ''),
+        'grade': _readField(g, ['grade', 'mainOption', 'option', 'level'], fallback: '-'),
+        'score': _readField(g, ['score', 'checkboxValue'], fallback: '-'),
+        'goalType': _readField(g, ['goalType', 'type'], fallback: '-'),
+        'remarks': _readField(g, ['remarks', 'remark', 'comment'], fallback: '-'),
+      };
+    }
+
+    if (goalsRoot is List) {
+      // Either a list of domain groups, or a flat list of goals.
+      for (final item in goalsRoot) {
+        if (item is Map) {
+          final domain = _readField(
+              item, ['domain', 'domainName', 'subdomain', 'title'],
+              fallback: '');
+          final inner = item['goals'] ?? item['questions'] ?? item['items'];
+          if (inner is List) {
+            for (final g in inner) {
+              if (g is Map) addGoal(domain.isEmpty ? 'Goals' : domain, normalizeGoal(g));
+            }
+          } else {
+            // Flat goal entry
+            final d = domain.isEmpty ? 'Goals' : domain;
+            addGoal(d, normalizeGoal(item));
+          }
+        }
+      }
+    } else if (goalsRoot is Map) {
+      // Map keyed by domain name → list / term-map of goals.
+      goalsRoot.forEach((domainKey, value) {
+        final domain = domainKey.toString();
+        if (value is List) {
+          for (final g in value) {
+            if (g is Map) addGoal(domain, normalizeGoal(g));
+          }
+        } else if (value is Map) {
+          for (final termKey in ['entry', 'term1', 'term2']) {
+            final list = value[termKey];
+            if (list is List) {
+              for (final g in list) {
+                if (g is Map) addGoal(domain, normalizeGoal(g));
+              }
+            }
+          }
+        }
+      });
+    }
+
+    return groups;
+  }
+
+  static const List<String> _romanNumerals = [
+    'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X',
+    'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX',
+  ];
+
+  String _toRoman(int n) =>
+      (n >= 1 && n <= _romanNumerals.length) ? _romanNumerals[n - 1] : '$n';
+
+  Future<pw.Document> _buildIepReportPdf(
+    Map<String, dynamic> data, {
+    required String term,
+    required String goalTypeFilter,
+    required bool withRemarks,
+  }) async {
+    final pdf = pw.Document();
+
+    // Header / student details with multiple key fallbacks.
+    final schoolName = _readField(
+        data, ['schoolName', 'organisationName', 'instituteName'],
+        fallback: (() {
+      final org = profileData.value?['organisation'];
+      if (org is Map) return (org['name'] ?? 'School').toString();
+      return (profileData.value?['name'] ?? 'School').toString();
+    })());
+
+    final academicYear = _readField(
+        data, ['academicYear', 'year', 'yearName'],
+        fallback: selectedNiepidYear.value ?? '-');
+    final studentName = _readField(data, ['studentName', 'name'], fallback: '-');
+    final className = _readField(data, ['class', 'className', 'grade'], fallback: '-');
+    final teacherName = _readField(data, ['teacherName', 'teacher'], fallback: '-');
+    final enrollmentNo = _readField(
+        data, ['enrollmentNo', 'enrollmentNumber', 'enrollment', 'admissionNo'],
+        fallback: '-');
+
+    final dateStr = _formatToday();
+
+    // Try to load the app logo (optional, ignored if missing).
+    pw.MemoryImage? logo;
+    try {
+      final bytes = await rootBundle.load('assets/images/logo.png');
+      logo = pw.MemoryImage(bytes.buffer.asUint8List());
+    } catch (_) {
+      logo = null;
+    }
+
+    var goalGroups = _extractGoalGroups(data);
+
+    // Apply goal-type filter (School / Home / Both).
+    if (goalTypeFilter != 'Both') {
+      for (final g in goalGroups) {
+        (g['goals'] as List).retainWhere((goal) =>
+            (goal['goalType'] ?? '').toString().toLowerCase() ==
+            goalTypeFilter.toLowerCase());
+      }
+      goalGroups = goalGroups.where((g) => (g['goals'] as List).isNotEmpty).toList();
+    }
+
+    final headers = <String>[
+      'No.',
+      'Goal Name',
+      'Grade',
+      'Score',
+      'Goal Type',
+      if (withRemarks) 'Remarks',
+    ];
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(32, 28, 32, 28),
+        header: (context) => context.pageNumber == 1
+            ? pw.SizedBox()
+            : pw.SizedBox(),
+        footer: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text(
+            'https://dashboard.divyangsarthi.in/all-reports',
+            style: pw.TextStyle(fontSize: 8, color: PdfColors.blue700),
+          ),
+        ),
+        build: (context) => [
+          // Date (top-left)
+          pw.Text(dateStr, style: const pw.TextStyle(fontSize: 9)),
+          pw.SizedBox(height: 16),
+          // Logo centered
+          if (logo != null)
+            pw.Center(child: pw.Image(logo, width: 90))
+          else
+            pw.Center(
+              child: pw.Text('DIVYANG SARTHI',
+                  style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue800)),
+            ),
+          pw.SizedBox(height: 18),
+          // School name + IEP line
+          pw.Center(
+            child: pw.Text(schoolName,
+                style: pw.TextStyle(fontSize: 20)),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Text(
+              'IEP for Academic Year: $academicYear | Term: $term',
+              style: const pw.TextStyle(fontSize: 11),
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Divider(thickness: 0.8, color: PdfColors.grey400),
+          pw.SizedBox(height: 8),
+          // Student details
+          _detailLine('Student: ', studentName),
+          _detailLine('Class: ', className),
+          _detailLine('Teacher: ', teacherName),
+          _detailLine('Enrollment No: ', enrollmentNo),
+          pw.SizedBox(height: 16),
+          // Goals table
+          _buildGoalsTable(headers, goalGroups, withRemarks),
+        ],
+      ),
+    );
+
+    return pdf;
+  }
+
+  pw.Widget _detailLine(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 4),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          children: [
+            pw.TextSpan(text: label, style: const pw.TextStyle(fontSize: 11)),
+            pw.TextSpan(
+                text: value,
+                style: pw.TextStyle(
+                    fontSize: 11, fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildGoalsTable(
+    List<String> headers,
+    List<Map<String, dynamic>> goalGroups,
+    bool withRemarks,
+  ) {
+    final colCount = headers.length;
+
+    // Column widths.
+    final columnWidths = <int, pw.TableColumnWidth>{
+      0: const pw.FixedColumnWidth(28), // No.
+      1: const pw.FlexColumnWidth(4), // Goal Name
+      2: const pw.FlexColumnWidth(1.6), // Grade
+      3: const pw.FlexColumnWidth(1.4), // Score
+      4: const pw.FlexColumnWidth(1.6), // Goal Type
+      if (withRemarks) 5: const pw.FlexColumnWidth(1.4), // Remarks
+    };
+
+    final rows = <pw.TableRow>[];
+
+    // Title row "Goals"
+    rows.add(
+      pw.TableRow(
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Text('Goals',
+                style: pw.TextStyle(
+                    fontSize: 13, fontWeight: pw.FontWeight.bold)),
+          ),
+          for (int i = 1; i < colCount; i++) pw.SizedBox(),
+        ],
+      ),
+    );
+
+    // Header row
+    rows.add(
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+        children: headers
+            .map((h) => pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(h,
+                      textAlign:
+                          h == 'Goal Name' ? pw.TextAlign.left : pw.TextAlign.center,
+                      style: pw.TextStyle(
+                          fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                ))
+            .toList(),
+      ),
+    );
+
+    if (goalGroups.isEmpty) {
+      rows.add(
+        pw.TableRow(children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Text('No goals found.',
+                style: const pw.TextStyle(fontSize: 10)),
+          ),
+          for (int i = 1; i < colCount; i++) pw.SizedBox(),
+        ]),
+      );
+    }
+
+    for (int d = 0; d < goalGroups.length; d++) {
+      final group = goalGroups[d];
+      final domain = group['domain']?.toString() ?? '';
+      final goals = (group['goals'] as List);
+
+      // Domain section row (spans visually as a bold label).
+      rows.add(
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey50),
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(6),
+              child: pw.Text('${_toRoman(d + 1)}. $domain',
+                  style: pw.TextStyle(
+                      fontSize: 10.5, fontWeight: pw.FontWeight.bold)),
+            ),
+            for (int i = 1; i < colCount; i++) pw.SizedBox(),
+          ],
+        ),
+      );
+
+      for (int gi = 0; gi < goals.length; gi++) {
+        final goal = goals[gi] as Map;
+        rows.add(
+          pw.TableRow(
+            children: [
+              _cell('${gi + 1}', align: pw.TextAlign.center),
+              _cell(goal['name']?.toString() ?? '-', align: pw.TextAlign.left),
+              _cell(goal['grade']?.toString() ?? '-', align: pw.TextAlign.center),
+              _cell(goal['score']?.toString() ?? '-', align: pw.TextAlign.center),
+              _cell(goal['goalType']?.toString() ?? '-', align: pw.TextAlign.center),
+              if (withRemarks)
+                _cell(goal['remarks']?.toString() ?? '-',
+                    align: pw.TextAlign.center),
+            ],
+          ),
+        );
+      }
+    }
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.5),
+      columnWidths: columnWidths,
+      children: rows,
+    );
+  }
+
+  pw.Widget _cell(String text, {pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: pw.Text(text, textAlign: align, style: const pw.TextStyle(fontSize: 9.5)),
+    );
+  }
+
+  String _formatToday() {
+    final now = DateTime.now();
+    final dd = now.day.toString().padLeft(2, '0');
+    final mm = now.month.toString().padLeft(2, '0');
+    final yyyy = now.year.toString();
+    return '$dd/$mm/$yyyy';
+  }
+
+  /// Saves [pdf] into the device's public Downloads folder, requesting
+  /// storage permission as required by the Android version.
+  Future<File?> _savePdfToDownloads(
+      pw.Document pdf, String studentId, String term) async {
+    Directory? directory;
+
+    if (Platform.isAndroid) {
+      // Request the right permission for the running Android version.
+      final granted = await _ensureStoragePermission();
+      if (!granted) {
+        Get.snackbar('Permission required',
+            'Storage permission is needed to save the report.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+        return null;
+      }
+
+      // Public Downloads directory.
+      const downloadsPath = '/storage/emulated/0/Download';
+      directory = Directory(downloadsPath);
+      if (!await directory.exists()) {
+        directory = await getExternalStorageDirectory();
+      }
+    } else {
+      directory = await getDownloadsDirectory() ??
+          await getApplicationDocumentsDirectory();
+    }
+
+    if (directory == null) {
+      Get.snackbar('Error', 'Could not access storage directory',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
+      return null;
+    }
+
+    final fileName =
+        'IEP_Report_${term}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final file = File('${directory.path}/$fileName');
+    await file.writeAsBytes(await pdf.save());
+    return file;
+  }
+
+  Future<bool> _ensureStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final sdkInt = androidInfo.version.sdkInt;
+
+    if (sdkInt >= 33) {
+      // Android 13+: writing to public Downloads needs manage-external-storage
+      // for arbitrary paths; try it, otherwise fall back to app storage.
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      final status = await Permission.manageExternalStorage.request();
+      return status.isGranted;
+    } else if (sdkInt >= 30) {
+      // Android 11–12
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      final status = await Permission.manageExternalStorage.request();
+      if (status.isGranted) return true;
+      // Fall back to legacy storage permission.
+      return (await Permission.storage.request()).isGranted;
+    } else {
+      // Android 10 and below
+      return (await Permission.storage.request()).isGranted;
     }
   }
 
@@ -2223,7 +2669,7 @@ class InstituteController extends GetxController {
     isUpdatingEducator.value = true;
     try {
       final body = {
-        "roles": ["Educator"],
+        "roles": "Educator",
         if (orgId.isNotEmpty) "organisation": orgId,
         "firstName": firstName,
         "lastName": lastName,
@@ -2315,6 +2761,110 @@ class InstituteController extends GetxController {
       );
     } finally {
       isUpdatingProfessionalStatus.value = false;
+    }
+  }
+
+  Future<void> deleteStudent(String studentId) async {
+    // Phase 1: Confirmation Dialog
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Are you sure you want to delete this PwID?'),
+        content: const Text(
+            'This action cannot be undone. The PwID will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('No, cancel!'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              _showRemarksDialog(studentId);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes, delete it!',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemarksDialog(String studentId) {
+    final remarksController = TextEditingController();
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Please provide remarks'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Remarks (required)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: remarksController,
+              decoration: const InputDecoration(
+                hintText: 'Enter your remarks here...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (remarksController.text.trim().isEmpty) {
+                Get.snackbar('Error', 'Remarks are required',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white);
+                return;
+              }
+              Get.back();
+              _performStudentDelete(studentId, remarksController.text.trim());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performStudentDelete(String studentId, String remark) async {
+    try {
+      final response = await _apiProvider.deleteStudent(studentId, remark);
+      print('Delete Student Status: ${response.statusCode}');
+      print('Delete Student Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Get.snackbar('Success', 'Record Deleted Successfully',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white);
+        fetchStudents(); // Refresh the list
+        Future.delayed(const Duration(milliseconds: 500), () {
+          Get.back(); // Go back from detail view to the list
+        });
+      } else {
+        Get.snackbar(
+            'Error', response.body?['message'] ?? 'Failed to delete record',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    } catch (e) {
+      print('Exception deleting student: $e');
+      Get.snackbar('Error', 'An error occurred',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white);
     }
   }
 }
