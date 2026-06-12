@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../controllers/register_controller.dart';
 import '../../../../theme/app_theme.dart';
 
@@ -45,23 +46,31 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
         ),
         const SizedBox(height: 16),
 
-        _buildDropdownWithLabel(
-          label: 'Designation*',
-          hint: 'Select Designation',
-          items: controller.designations,
-          value: controller.selectedDesignation,
-          onChanged: controller.onDesignationChanged,
-        ),
+        Obx(() => _buildDropdownWithLabel(
+              label: 'Designation*',
+              hint: controller.isLoadingDesignations.value
+                  ? 'Loading designations...'
+                  : 'Select Designation',
+              items: controller.designationOptions.isEmpty
+                  ? controller.designations
+                  : controller.designationOptions.toList(),
+              value: controller.selectedDesignation,
+              onChanged: controller.onDesignationChanged,
+            )),
         const SizedBox(height: 16),
 
-        _buildDropdownWithLabel(
-          label: 'Qualification*',
-          hint: 'Select Qualification',
-          items: controller.qualifications,
-          value: controller.selectedQualification,
-          onChanged: (val) =>
-              controller.selectedQualification.value = val ?? '',
-        ),
+        Obx(() => _buildDropdownWithLabel(
+              label: 'Qualification*',
+              hint: controller.isQualificationsLoading.value
+                  ? 'Loading qualifications...'
+                  : 'Select Qualification',
+              items: controller.qualificationOptions.isEmpty
+                  ? controller.qualifications
+                  : controller.qualificationOptions.toList(),
+              value: controller.selectedQualification,
+              onChanged: (val) =>
+                  controller.selectedQualification.value = val ?? '',
+            )),
         const SizedBox(height: 16),
 
         _buildTextFieldWithLabel(
@@ -118,25 +127,31 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
           hint: 'Enter your pin code',
           icon: Icons.pin_drop_outlined,
           keyboardType: TextInputType.number,
+          onChanged: (val) {
+            if (val.length == 6) {
+              controller.lookupPincode(val);
+            }
+          },
         ),
         const SizedBox(height: 16),
 
-        _buildDropdownWithLabel(
+        // State auto-filled from the pincode (read-only).
+        _buildTextFieldWithLabel(
           label: 'State*',
-          hint: 'State',
-          items: controller.states,
-          value: controller.selectedState,
-          onChanged: (val) => controller.selectedState.value = val ?? '',
+          controller: controller.stateController,
+          hint: 'State (auto-filled from pin code)',
+          icon: Icons.map_outlined,
+          readOnly: true,
         ),
         const SizedBox(height: 16),
 
+        // District / City list populated from the pincode lookup.
         Obx(() => _buildDropdownWithLabel(
               label: 'District / City*',
-              hint: 'Select district / city',
-              items: controller.selectedCountry.value.isEmpty
-                  ? controller.districts['India'] ?? []
-                  : controller.districts[controller.selectedCountry.value] ??
-                      [],
+              hint: controller.isPincodeLoading.value
+                  ? 'Loading districts...'
+                  : 'Select district / city',
+              items: controller.availableDistricts.toList(),
               value: controller.selectedDistrict,
               onChanged: controller.onDistrictChanged,
             )),
@@ -150,44 +165,8 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
         ),
         const SizedBox(height: 16),
 
-        // Captcha placeholder
-        Row(
-          children: [
-            Expanded(
-              child: _buildTextField(
-                controller: controller.captchaController,
-                hint: 'Enter captcha code',
-                icon: Icons.security,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              height: 55,
-              width: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.borderColor),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                '8X2K9L', // Dummy captcha
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 4,
-                  decoration: TextDecoration.lineThrough,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.black54,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
-              onPressed: () {},
-            ),
-          ],
-        ),
+        // Captcha
+        _buildCaptcha(),
         const SizedBox(height: 16),
 
         Obx(() => CheckboxListTile(
@@ -212,6 +191,121 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
     );
   }
 
+  Widget _buildCaptcha() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _buildTextField(
+                controller: controller.captchaController,
+                hint: 'Enter captcha code',
+                icon: Icons.security,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Obx(() {
+                if (controller.isFetchingCaptcha.value) {
+                  return Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderColor),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                }
+
+                if (controller.captchaSvg.value.isEmpty) {
+                  return Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.5)),
+                    ),
+                    child: const Center(
+                        child: Text('Failed',
+                            style: TextStyle(color: Colors.red))),
+                  );
+                }
+
+                return Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.borderColor),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: SvgPicture.string(
+                    controller.captchaSvg.value,
+                    fit: BoxFit.contain,
+                  ),
+                );
+              }),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+              onPressed: controller.refreshCaptcha,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Obx(() => TextButton(
+                  onPressed: controller.toggleCaptchaType,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(50, 30),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    controller.isMathCaptcha.value
+                        ? 'Visual Captcha'
+                        : 'Math Captcha',
+                    style: const TextStyle(
+                        fontSize: 12, decoration: TextDecoration.underline),
+                  ),
+                )),
+            Obx(() {
+              if (controller.captchaVerified.value) {
+                return const Text(
+                  '✓ Captcha verified successfully',
+                  style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12),
+                );
+              }
+              return ElevatedButton(
+                onPressed: controller.verifyCaptcha,
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  minimumSize: const Size(60, 30),
+                ),
+                child: const Text('Verify'),
+              );
+            }),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildTextFieldWithLabel({
     required String label,
     required TextEditingController controller,
@@ -219,6 +313,8 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
     required IconData icon,
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+    void Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,6 +331,8 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
           icon: icon,
           isPassword: isPassword,
           keyboardType: keyboardType,
+          readOnly: readOnly,
+          onChanged: onChanged,
         ),
       ],
     );
@@ -246,6 +344,8 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
     required IconData icon,
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+    void Function(String)? onChanged,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -263,6 +363,8 @@ class ProfessionalRegistrationView extends GetView<RegisterController> {
         controller: controller,
         obscureText: isPassword,
         keyboardType: keyboardType,
+        readOnly: readOnly,
+        onChanged: onChanged,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle:

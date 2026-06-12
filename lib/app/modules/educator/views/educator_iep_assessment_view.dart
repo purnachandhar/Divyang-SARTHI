@@ -908,6 +908,12 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
     return parsed ?? (1 << 30);
   }
 
+  // Reads a question's text (used as a secondary A–Z sort key).
+  String _questionText(dynamic q) {
+    if (q is! Map) return '';
+    return q['question']?.toString() ?? '';
+  }
+
   List<Widget> _buildQuestionCardsWithSubdomains(List<dynamic> questions) {
     final widgets = <Widget>[];
 
@@ -926,8 +932,16 @@ class EducatorIepAssessmentView extends GetView<EducatorController> {
     int questionIndex = 0;
     for (final subdomain in subdomains) {
       // Within each subdomain, sort questions by "priority" (1, 2, 3, ...).
+      // When two questions share the same priority, order them A–Z by text.
       final subQuestions = grouped[subdomain]!
-        ..sort((a, b) => _questionPriority(a).compareTo(_questionPriority(b)));
+        ..sort((a, b) {
+          final priorityCompare =
+              _questionPriority(a).compareTo(_questionPriority(b));
+          if (priorityCompare != 0) return priorityCompare;
+          return _questionText(a)
+              .toLowerCase()
+              .compareTo(_questionText(b).toLowerCase());
+        });
 
       if (subdomain != 'Other') {
         widgets.add(

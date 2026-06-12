@@ -20,8 +20,48 @@ class ApiProvider extends GetConnect {
     };
   }
 
+  Future<Response> searchSchool(String query) =>
+      get('/users/public/searchschool', query: {'search': query});
+
+  Future<Response> checkUserExists({String? mobile, String? email}) {
+    final query = <String, String>{};
+    if (mobile != null && mobile.trim().isNotEmpty) query['mobile'] = mobile.trim();
+    if (email != null && email.trim().isNotEmpty) query['email'] = email.trim();
+    return get('/users/public/check-user-exists', query: query);
+  }
+
+  Future<Response> sendOtp({required String to}) => post(
+        '/service/sms/register-otp',
+        {
+          "to": to,
+          "deviceInfo": {
+            "platform": Platform.operatingSystem,
+            "browser": "Flutter",
+            "version": Platform.operatingSystemVersion,
+          },
+        },
+      );
+
+  Future<Response> verifyOtp({
+    required String otp,
+    required String otpId,
+    required String otpToken,
+  }) =>
+      post('/service/sms/verify-otp', {
+        "otp": otp,
+        "otpId": otpId,
+        "otpToken": otpToken,
+      });
+
+  Future<Response> getDropdown(String name, {bool onlyActive = true}) =>
+      get('/dropdown',
+          query: {'name': name, 'onlyActive': onlyActive.toString()});
+
   Future<Response> registerInstitute(InstituteRegistrationRequest request) =>
       post('/users/public/register', request.toJson());
+
+  Future<Response> registerParent(Map<String, dynamic> body) =>
+      post('/users/public/register', body);
 
   Future<Response> registerProfessional(
           ProfessionalRegistrationRequest request) =>

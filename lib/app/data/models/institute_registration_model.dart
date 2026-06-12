@@ -9,6 +9,9 @@ class InstituteRegistrationRequest {
   final String designation;
   final String landLineNumber;
   final bool isTermsAndConditionsAccepted;
+  final String schoolType;
+  final bool isNipiedDisha;
+  final Map<String, dynamic>? address;
 
   InstituteRegistrationRequest({
     required this.roles,
@@ -21,6 +24,9 @@ class InstituteRegistrationRequest {
     required this.designation,
     required this.landLineNumber,
     required this.isTermsAndConditionsAccepted,
+    this.schoolType = '',
+    this.isNipiedDisha = false,
+    this.address,
   });
 
   Map<String, dynamic> toJson() {
@@ -34,6 +40,9 @@ class InstituteRegistrationRequest {
       "mobile": mobile,
       "designation": designation,
       "landLineNumber": landLineNumber,
+      "schoolType": schoolType,
+      if (address != null) "address": address,
+      "isNipiedDisha": isNipiedDisha,
       "isTermsAndConditionsAccepted": isTermsAndConditionsAccepted,
     };
   }

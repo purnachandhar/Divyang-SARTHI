@@ -74,15 +74,18 @@ class RegisterView extends GetView<RegisterController> {
                             ),
                           ],
                         ),
-                        child: Obx(() => ElevatedButton(
-                              onPressed: controller.isLoading.value
-                                  ? null
-                                  : controller.onRegister,
+                        child: Obx(() {
+                          // All account types require a verified captcha.
+                          final isEnabled = !controller.isLoading.value &&
+                              controller.captchaVerified.value;
+                          return ElevatedButton(
+                              onPressed: isEnabled ? controller.onRegister : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shadowColor: Colors.transparent,
+                                disabledForegroundColor: Colors.white70,
                               ),
                               child: controller.isLoading.value
                                   ? const SizedBox(
@@ -99,7 +102,8 @@ class RegisterView extends GetView<RegisterController> {
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16),
                                     ),
-                            )),
+                            );
+                        }),
                       ),
                     ),
                     const SizedBox(height: 24),

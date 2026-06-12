@@ -318,9 +318,17 @@ class IepQuestionnaireView extends GetView<InstituteController> {
       return match != null ? int.tryParse(match.group(0)!) ?? 0 : 0;
     }
 
-    // Sort questions numerically
+    // Question text used as a secondary A–Z sort key.
+    String questionText(dynamic q) =>
+        (q is Map ? q['question']?.toString() : null) ?? '';
+
+    // Sort by priority ascending; when priorities are equal, order A–Z by text.
     final sortedQuestions = questions.toList();
-    sortedQuestions.sort((a, b) => extractNumber(a).compareTo(extractNumber(b)));
+    sortedQuestions.sort((a, b) {
+      final priorityCompare = extractNumber(a).compareTo(extractNumber(b));
+      if (priorityCompare != 0) return priorityCompare;
+      return questionText(a).toLowerCase().compareTo(questionText(b).toLowerCase());
+    });
 
     // Group questions by subdomain
     final Map<String, List<dynamic>> groupedQuestions = {};
