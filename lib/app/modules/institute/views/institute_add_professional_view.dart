@@ -35,17 +35,17 @@ class InstituteAddProfessionalView extends GetView<InstituteController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Institute Passcode'),
-                    const SizedBox(height: 8),
+                    // _buildSectionTitle('Institute Passcode'),
+                    // const SizedBox(height: 8),
                     // Read passcode dynamically from profile
-                    Obx(() {
-                      final org = controller.profileData.value?['organisation'];
-                      final passCode = org is Map
-                          ? (org['passCode'] ?? 'Loading...').toString()
-                          : 'Loading...';
-                      return _buildReadOnlyField(passCode);
-                    }),
-                    const SizedBox(height: 24),
+                    // Obx(() {
+                    //   final org = controller.profileData.value?['organisation'];
+                    //   final passCode = org is Map
+                    //       ? (org['passCode'] ?? 'Loading...').toString()
+                    //       : 'Loading...';
+                    //   return _buildReadOnlyField(passCode);
+                    // }),
+                    // const SizedBox(height: 24),
                     _buildSectionTitle('Personal Information'),
                     const SizedBox(height: 16),
                     _buildTextField(

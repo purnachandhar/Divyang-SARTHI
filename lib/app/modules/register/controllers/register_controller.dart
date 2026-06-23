@@ -1011,7 +1011,49 @@ class RegisterController extends GetxController {
   };
 
   void selectType(int index) {
+    if (selectedTypeIndex.value == index) return;
     selectedTypeIndex.value = index;
+    // Each account type is a separate registration. Clear the shared form so
+    // values typed under one type don't carry over to another.
+    _clearForm();
+  }
+
+  /// Resets every shared input field and selection back to its empty state.
+  /// Called when the user switches between Parent / Professional / Institute.
+  void _clearForm() {
+    // Text fields
+    firstNameController.clear();
+    lastNameController.clear();
+    mobileController.clear();
+    emailController.clear();
+    passwordController.clear();
+    retypePasswordController.clear();
+    landlineController.clear();
+    instituteNameController.clear();
+    crrNumberController.clear();
+    pinCodeController.clear();
+    stateController.clear();
+    localAddressController.clear();
+    captchaController.clear();
+
+    // Dropdown / selection state
+    selectedDesignation.value = '';
+    selectedQualification.value = '';
+    selectedSchoolType.value = '';
+    selectedSchoolId.value = '';
+    selectedCountry.value = '';
+    selectedDistrict.value = '';
+    selectedState.value = '';
+
+    // Toggles
+    isNiepidDisha.value = false;
+    agreeToTerms.value = false;
+
+    // Transient lists / captcha verification
+    availableDistricts.clear();
+    schoolSearchResults.clear();
+    captchaVerified.value = false;
+    refreshCaptcha();
   }
 
   void onCountryChanged(String? value) {

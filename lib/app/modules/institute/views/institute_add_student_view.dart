@@ -36,7 +36,7 @@ class InstituteAddStudentView extends GetView<InstituteController> {
     final studentClass = RxnString();
     final gender = RxnString();
     final parentRelation = RxnString();
-    final assignedProfessionals = <String>[].obs;
+    final assignedProfessional = RxnString();
     final disabilityTypes = <String>[].obs;
     final selectedCity = RxnString();
     final childPhotoPath = RxnString();
@@ -160,17 +160,19 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                         validator: (v) =>
                             v!.isEmpty ? 'Admission date is required' : null),
                     const SizedBox(height: 16),
-                    Obx(() => _buildMultiSelectField(
+                    Obx(() => _buildDropdownField(
                         label: 'Assign Professional*',
                         hint: controller.isEducatorsLoading.value
                             ? 'Loading professionals...'
-                            : 'Select professionals',
+                            : 'Select professional',
                         items: controller.educators
                             .map((e) =>
                                 "${e['firstName'] ?? ''} ${e['lastName'] ?? ''}"
                                     .trim())
                             .toList(),
-                        selectedItems: assignedProfessionals)),
+                        value: assignedProfessional,
+                        validator: (v) =>
+                            v == null ? 'Professional is required' : null)),
                     const SizedBox(height: 16),
                     _buildReadOnlyField(label: 'Country*', value: 'India'),
                     const SizedBox(height: 16),
@@ -310,25 +312,21 @@ class InstituteAddStudentView extends GetView<InstituteController> {
                                       // Collect disability types
                                       // Note: The view uses a list of checkboxes or similar
 
-                                      // Find selected professional IDs
+                                      // Find selected professional ID
                                       List<String> profIds = [];
-                                      if (assignedProfessionals.isNotEmpty) {
-                                        for (var profName
-                                            in assignedProfessionals) {
-                                          try {
-                                            final prof = controller.educators
-                                                .firstWhere((e) =>
-                                                    "${e['firstName'] ?? ''} ${e['lastName'] ?? ''}"
-                                                        .trim() ==
-                                                    profName);
-                                            final id =
-                                                prof['_id']?.toString() ??
-                                                    prof['id']?.toString();
-                                            if (id != null) profIds.add(id);
-                                          } catch (e) {
-                                            print(
-                                                'Error finding professional: $e');
-                                          }
+                                      if (assignedProfessional.value != null) {
+                                        try {
+                                          final prof = controller.educators
+                                              .firstWhere((e) =>
+                                                  "${e['firstName'] ?? ''} ${e['lastName'] ?? ''}"
+                                                      .trim() ==
+                                                  assignedProfessional.value);
+                                          final id = prof['_id']?.toString() ??
+                                              prof['id']?.toString();
+                                          if (id != null) profIds.add(id);
+                                        } catch (e) {
+                                          print(
+                                              'Error finding professional: $e');
                                         }
                                       }
 

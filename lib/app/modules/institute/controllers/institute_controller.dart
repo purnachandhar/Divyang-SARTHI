@@ -956,6 +956,10 @@ class InstituteController extends GetxController {
           state: 'Telangana',
           country: 'India',
         ),
+        isApproved: true,
+        // Inherit the NIEPID DISHA flag from the logged-in institute's profile
+        // (set in fetchCurrentProfile from response.body['isNipiedDisha']).
+        isNipiedDisha: isNipiedDisha.value,
       );
 
       print('Add Professional Request: ${request.toJson()}');
@@ -1268,7 +1272,10 @@ class InstituteController extends GetxController {
       print('Update Student Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Get.back();
+        // Pop the Edit (and the Student Detail) screens to return to the
+        // student list on the institute home dashboard.
+        currentIndex.value = 3; // Students tab in the home IndexedStack
+        Get.until((route) => route.settings.name == '/institute-home');
         fetchStudents(); // Refresh list
         Future.delayed(const Duration(milliseconds: 300), () {
           Get.snackbar('Success', 'Student updated successfully!',

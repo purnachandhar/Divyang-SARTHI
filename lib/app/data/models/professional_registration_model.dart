@@ -38,6 +38,8 @@ class ProfessionalRegistrationRequest {
   final String? crrNumber;
   final String? designation;
   final Address address;
+  final bool isApproved;
+  final bool isNipiedDisha;
 
   ProfessionalRegistrationRequest({
     required this.roles,
@@ -53,6 +55,8 @@ class ProfessionalRegistrationRequest {
     this.crrNumber,
     this.designation,
     required this.address,
+    this.isApproved = false,
+    this.isNipiedDisha = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -71,6 +75,8 @@ class ProfessionalRegistrationRequest {
       if (designation != null && designation!.isNotEmpty)
         "designation": designation,
       "address": address.toJson(),
+      "isApproved": isApproved,
+      "isNipiedDisha": isNipiedDisha,
     };
   }
 }
