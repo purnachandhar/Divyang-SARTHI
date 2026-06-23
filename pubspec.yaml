@@ -41,7 +41,8 @@ dependencies:
   carousel_slider: ^5.0.0
   font_awesome_flutter: ^10.7.0
   animate_do: ^3.3.4
-  intro_screen_onboarding_flutter: ^1.0.0
+  intro_screen_onboarding_flutter:
+    path: vendor/intro_screen_onboarding_flutter
   shared_preferences: ^2.2.2
   fl_chart: ^0.70.0
   file_picker: ^8.1.7
@@ -66,7 +67,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.4.4
+  flutter_native_splash: ^2.4.6
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
